@@ -1,0 +1,67 @@
+#include "BrawlerCharacter.h"
+#include "Cell_Actor.h"
+#include "Grid_Manager.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
+
+ABrawlerCharacter::ABrawlerCharacter()
+{
+    MovementRange = 6;
+    AttackRange = 1;
+    Health = 40;
+    DamageMin = 1;
+    DamageMax = 6;
+    AttackType = EAttackType::Melee;
+
+    CurrentCell = nullptr;
+}
+
+void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell)
+{
+    if (!DestinationCell)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: DestinationCell is null"));
+        return;
+    }
+
+    if (DestinationCell->bIsOccupied)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è occupata"), DestinationCell->Row, DestinationCell->Column);
+        return;
+    }
+
+    if (CurrentCell)
+    {
+        int32 DeltaRow = FMath::Abs(DestinationCell->Row - CurrentCell->Row);
+        int32 DeltaCol = FMath::Abs(DestinationCell->Column - CurrentCell->Column);
+        int32 ManhattanDistance = DeltaRow + DeltaCol;
+
+        if (ManhattanDistance > MovementRange)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è fuori dal range di movimento"), DestinationCell->Row, DestinationCell->Column);
+            return;
+        }
+
+        CurrentCell->bIsOccupied = false;
+    }
+
+    AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
+    if (GridManager)
+    {
+        FVector StartLocation = GridManager->GetStartLocation();
+        float CellStep = GridManager->GetCellStep();
+
+        FVector TargetLocation = StartLocation + FVector(
+            DestinationCell->Column * CellStep,
+            DestinationCell->Row * CellStep,
+            0.f
+        );
+
+        SetActorLocation(TargetLocation);
+    }
+
+    CurrentCell = DestinationCell;
+    DestinationCell->bIsOccupied = true;
+
+    UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
+}
