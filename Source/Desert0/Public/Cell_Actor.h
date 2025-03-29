@@ -46,6 +46,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     AActor* OccupyingUnit;
     
+    UPROPERTY(BlueprintReadWrite, Category = "Grid")
+    bool bIsHighlighted;
+    
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
     UStaticMeshComponent* MyMesh;
     

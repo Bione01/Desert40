@@ -6,6 +6,10 @@ ACell_Actor::ACell_Actor()
 {
     PrimaryActorTick.bCanEverTick = true;
     
+    
+    MyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MyMesh"));
+    RootComponent = MyMesh;
+    
     // Inizializzazione delle proprietà della cella
     Row = 0;
     Column = 0;
@@ -27,14 +31,14 @@ void ACell_Actor::BeginPlay()
 void ACell_Actor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    
-    MyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MyMesh"));
-    RootComponent = MyMesh;
+
 }
 
 // Funzione per evidenziare la cella
 void ACell_Actor::SetHighlight(bool bHighlight)
 {
+    bIsHighlighted = bHighlight;
+    
     if (MyMesh)
     {
         if (bHighlight && HighlightMaterial)

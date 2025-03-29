@@ -22,7 +22,7 @@ void AMyPlayerController::BeginPlay()
     bIsSniperPlaced = false;
     bIsBrawlerPlaced = false;
 
-    // Trova il Grid Manager
+    // Trova Grid Manager
     for (TActorIterator<AGrid_Manager> It(GetWorld()); It; ++It)
     {
         GridManager = *It;
@@ -63,18 +63,10 @@ void AMyPlayerController::ShowCharacterSelectionWidget()
             {
                 SelectionWidget->UpdateButtonsVisibility(bIsSniperPlaced, bIsBrawlerPlaced);
             }
-            else
-            {
-                UE_LOG(LogTemp, Warning, TEXT("Cast a UMySelectionWidget fallito!"));
-            }
 
             CharacterSelectionWidget->AddToViewport();
             bShowMouseCursor = true;
             SetInputMode(FInputModeUIOnly());
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("CharacterSelectionWidget non creato!"));
         }
     }
 }
@@ -166,6 +158,8 @@ void AMyPlayerController::HandleLeftMouseClick()
                         Possess(SpawnedSniper);
                         bIsSniperPlaced = true;
                         PlacementCount++;
+                        SpawnedSniper->CurrentRow = ClickedCell->Row;
+                        SpawnedSniper->CurrentColumn = ClickedCell->Column;
                     }
                 }
                 else if (SelectedCharacterType == "Brawler" && BrawlerCharacterClass && !SpawnedBrawler)
@@ -176,6 +170,8 @@ void AMyPlayerController::HandleLeftMouseClick()
                         Possess(SpawnedBrawler);
                         bIsBrawlerPlaced = true;
                         PlacementCount++;
+                        SpawnedBrawler->CurrentRow = ClickedCell->Row;
+                        SpawnedBrawler->CurrentColumn = ClickedCell->Column;
                     }
                 }
 
@@ -192,6 +188,8 @@ void AMyPlayerController::HandleLeftMouseClick()
                         Possess(SpawnedSniper);
                         bIsSniperPlaced = true;
                         PlacementCount++;
+                        SpawnedSniper->CurrentRow = ClickedCell->Row;
+                        SpawnedSniper->CurrentColumn = ClickedCell->Column;
                     }
                 }
                 else if (SelectedCharacterType == "Brawler" && BrawlerCharacterClass && !SpawnedBrawler)
@@ -202,6 +200,8 @@ void AMyPlayerController::HandleLeftMouseClick()
                         Possess(SpawnedBrawler);
                         bIsBrawlerPlaced = true;
                         PlacementCount++;
+                        SpawnedBrawler->CurrentRow = ClickedCell->Row;
+                        SpawnedBrawler->CurrentColumn = ClickedCell->Column;
                     }
                 }
             }
@@ -218,14 +218,16 @@ void AMyPlayerController::HandleLeftMouseClick()
         return;
     }
 
-    // Se clicchi una cella per muoverti
+    // Se clicchi una cella evidenziata per muoverti
     ACell_Actor* ClickedCell = GetClickedCell();
-    if (ClickedCell)
+    if (ClickedCell && ClickedCell->bIsHighlighted)
     {
         AGameCharacter* ControlledCharacter = Cast<AGameCharacter>(GetPawn());
         if (ControlledCharacter)
         {
             ControlledCharacter->MoveToCell(ClickedCell);
+            ControlledCharacter->CurrentRow = ClickedCell->Row;
+            ControlledCharacter->CurrentColumn = ClickedCell->Column;
             ClearHighlights();
         }
     }
@@ -233,23 +235,69 @@ void AMyPlayerController::HandleLeftMouseClick()
 
 void AMyPlayerController::HighlightReachableCells(AGameCharacter* SelectedCharacter)
 {
-    if (!GridManager) return;
+    if (!GridManager || !SelectedCharacter) return;
 
     TArray<ACell_Actor*> AllCells = GridManager->GetAllCells();
-    FVector CharacterLocation = SelectedCharacter->GetActorLocation();
 
+    TMap<FIntPoint, ACell_Actor*> CellMap;
     for (ACell_Actor* Cell : AllCells)
     {
-        if (!Cell) continue;
-
-        float Distance = FVector::Dist2D(Cell->GetActorLocation(), CharacterLocation);
-        if (Distance <= MovementRange * CellSize) // MovementRange deve essere una tua variabile, ad es. 2 o 3
+        if (Cell)
         {
-            Cell->SetHighlight(true);
+            CellMap.Add(FIntPoint(Cell->Row, Cell->Column), Cell);
         }
-        else
+    }
+
+    TQueue<TPair<FIntPoint, int32>> Queue;
+
+    const FIntPoint Start(SelectedCharacter->CurrentRow, SelectedCharacter->CurrentColumn);
+    Queue.Enqueue(TPair<FIntPoint, int32>(Start, 0));
+
+    TSet<FIntPoint> Visited;
+
+    while (!Queue.IsEmpty())
+    {
+        TPair<FIntPoint, int32> Current;
+        Queue.Dequeue(Current);
+
+        const FIntPoint& Coord = Current.Key;
+        int32 Distance = Current.Value;
+
+        if (Distance > SelectedCharacter->MovementRange || Visited.Contains(Coord))
+            continue;
+
+        Visited.Add(Coord);
+
+        ACell_Actor** FoundCell = CellMap.Find(Coord);
+        if (FoundCell && *FoundCell)
         {
-            Cell->SetHighlight(false);
+            if ((*FoundCell)->CellType == ECellType::Obstacle || ((*FoundCell)->bIsOccupied && Distance > 0))
+                continue;
+
+            if (Distance > 0) // 🔥 Non evidenziare la cella di partenza
+            {
+                (*FoundCell)->SetHighlight(true);
+            }
+        }
+
+        const TArray<FIntPoint> Directions = {
+            FIntPoint(1, 0),
+            FIntPoint(-1, 0),
+            FIntPoint(0, 1),
+            FIntPoint(0, -1)
+        };
+
+        for (const FIntPoint& Dir : Directions)
+        {
+            FIntPoint NextCoord = Coord + Dir;
+            if (!Visited.Contains(NextCoord))
+            {
+                ACell_Actor** NextCell = CellMap.Find(NextCoord);
+                if (NextCell && *NextCell)
+                {
+                    Queue.Enqueue(TPair<FIntPoint, int32>(NextCoord, Distance + 1));
+                }
+            }
         }
     }
 }
