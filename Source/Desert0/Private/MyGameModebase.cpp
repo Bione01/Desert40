@@ -52,14 +52,16 @@ void AMyGameModebase::BeginPlay()
 
     // Se l'IA deve iniziare il posizionamento, esegui subito la sua azione
     if (bPlayerStartsPlacement)
-        {
-            UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
-        }
-        else
-        {
-            PlaceAIUnit();
-        }
+    {
+        UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
     }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("L'IA sta posizionando la prima unità..."));
+        PlaceAIUnit();
+    }
+
+}
 
 void AMyGameModebase::StartPlayerTurn()
 {
@@ -184,29 +186,46 @@ void AMyGameModebase::PlacePlayerUnit()
 void AMyGameModebase::NotifyPlayerUnitPlaced()
 {
     PlayerUnitsPlaced++;
+    UE_LOG(LogTemp, Log, TEXT("Unità del Giocatore posizionata. Totale: %d"), PlayerUnitsPlaced);
+
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
         StartBattlePhase();
     }
     else
     {
-        if (PlayerUnitsPlaced > AIUnitsPlaced)
+        if (bPlayerStartsPlacement)
         {
-            // Tocca all'IA
-            PlaceAIUnit();
+            // Giocatore inizia → logica normale
+            if (PlayerUnitsPlaced > AIUnitsPlaced)
+            {
+                PlaceAIUnit();
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            }
         }
         else
         {
-            // Tocca di nuovo al giocatore, resta in attesa input
-            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            // IA inizia → aspetta che il giocatore abbia messo almeno UNA unità
+            if (PlayerUnitsPlaced == AIUnitsPlaced)
+            {
+                GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            }
         }
     }
 }
 
-
 void AMyGameModebase::NotifyAIUnitPlaced()
 {
     AIUnitsPlaced++;
+    UE_LOG(LogTemp, Log, TEXT("Unità dell'IA posizionata. Totale: %d"), AIUnitsPlaced);
+
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
         StartBattlePhase();
@@ -220,8 +239,8 @@ void AMyGameModebase::NotifyAIUnitPlaced()
         }
         else
         {
-            // Tocca all'IA di nuovo
-            PlaceAIUnit();
+            // Dopo un leggero delay per evitare chiamate immediate
+            GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
     }
 }
@@ -234,29 +253,39 @@ void AMyGameModebase::PlaceAIUnit()
         return;
     }
 
-    // Trova celle libere
     TArray<ACell_Actor*> FreeCells;
     for (ACell_Actor* Cell : GridManager->GridCells)
     {
         if (Cell && !Cell->bIsOccupied && Cell->CellType != ECellType::Obstacle)
         {
-            FreeCells.Add(Cell);
+            bool bOccupiedByCharacter = false;
+
+            TArray<AActor*> FoundCharacters;
+            UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundCharacters);
+
+            for (AActor* Actor : FoundCharacters)
+            {
+                AGameCharacter* Character = Cast<AGameCharacter>(Actor);
+                if (Character && Character->CurrentRow == Cell->Row && Character->CurrentColumn == Cell->Column)
+                {
+                    bOccupiedByCharacter = true;
+                    break;
+                }
+            }
+
+            if (!bOccupiedByCharacter)
+            {
+                FreeCells.Add(Cell);
+            }
         }
     }
 
-    if (FreeCells.Num() == 0)
+    if (FreeCells.Num() == 0 || AIUnitsPlaced >= MaxUnitsPerSide)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Nessuna cella libera disponibile per l'IA."));
+        UE_LOG(LogTemp, Log, TEXT("Nessuna cella libera o IA ha già piazzato tutte le unità."));
         return;
     }
 
-    if (AIUnitsPlaced >= MaxUnitsPerSide)
-    {
-        UE_LOG(LogTemp, Log, TEXT("L'IA ha già piazzato tutte le unità."));
-        return;
-    }
-
-    // Alterna lo spawn tra Brawler e Sniper
     TSubclassOf<AGameCharacter> UnitToSpawn = nullptr;
     if (AIUnitsPlaced == 0)
     {
@@ -282,7 +311,6 @@ void AMyGameModebase::PlaceAIUnit()
         AGameCharacter* SpawnedAIUnit = GetWorld()->SpawnActor<AGameCharacter>(UnitToSpawn, SpawnLocation, SpawnRotation, SpawnParams);
         if (SpawnedAIUnit)
         {
-            // Possesso
             AMyAIController* AIController = GetWorld()->SpawnActor<AMyAIController>(AMyAIController::StaticClass());
             if (AIController)
             {
@@ -292,25 +320,11 @@ void AMyGameModebase::PlaceAIUnit()
             SpawnedAIUnit->MoveToCell(DestinationCell);
             UE_LOG(LogTemp, Log, TEXT("Unità IA spawnata: %s nella cella (%d, %d)"), *SpawnedAIUnit->GetName(), DestinationCell->Row, DestinationCell->Column);
 
-            AIUnitsPlaced++;
+            NotifyAIUnitPlaced();
         }
     }
-
-    // Controlla se è ora di iniziare la battaglia
-    if (AIUnitsPlaced >= MaxUnitsPerSide && PlayerUnitsPlaced >= MaxUnitsPerSide)
-    {
-        StartBattlePhase();
-    }
-    else if (AIUnitsPlaced > PlayerUnitsPlaced)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-    }
-    else
-    {
-        // Tocca di nuovo all'IA
-        PlaceAIUnit();
-    }
 }
+
 
 void AMyGameModebase::StartBattlePhase()
 {

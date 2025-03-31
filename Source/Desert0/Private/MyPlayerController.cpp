@@ -130,7 +130,7 @@ AGameCharacter* AMyPlayerController::GetClickedUnit()
 void AMyPlayerController::HandleLeftMouseClick()
 {
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
-    if (MyGameMode && MyGameMode->CurrentTurn != ETurnState::TS_PlayerTurn)
+    if (MyGameMode && MyGameMode->CurrentPhase != EGamePhase::GP_Placement)
         return;
 
     if (CharacterSelectionWidget != nullptr)
@@ -148,68 +148,45 @@ void AMyPlayerController::HandleLeftMouseClick()
             FActorSpawnParameters SpawnParams;
             SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-            if (PlacementCount == 0)
+            AGameCharacter* SpawnedUnit = nullptr;
+
+            if (SelectedCharacterType == "Sniper" && SniperCharacterClass && !SpawnedSniper)
             {
-                if (SelectedCharacterType == "Sniper" && SniperCharacterClass && !SpawnedSniper)
+                SpawnedSniper = GetWorld()->SpawnActor<AGameCharacter>(SniperCharacterClass, DesiredSpawnLocation, FRotator::ZeroRotator, SpawnParams);
+                SpawnedUnit = SpawnedSniper;
+                bIsSniperPlaced = true;
+            }
+            else if (SelectedCharacterType == "Brawler" && BrawlerCharacterClass && !SpawnedBrawler)
+            {
+                SpawnedBrawler = GetWorld()->SpawnActor<AGameCharacter>(BrawlerCharacterClass, DesiredSpawnLocation, FRotator::ZeroRotator, SpawnParams);
+                SpawnedUnit = SpawnedBrawler;
+                bIsBrawlerPlaced = true;
+            }
+
+            if (SpawnedUnit)
+            {
+                Possess(SpawnedUnit);
+                PlacementCount++;
+                SpawnedUnit->CurrentRow = ClickedCell->Row;
+                SpawnedUnit->CurrentColumn = ClickedCell->Column;
+
+                // ✅ Notifica sempre la GameMode
+                if (MyGameMode)
                 {
-                    SpawnedSniper = GetWorld()->SpawnActor<AGameCharacter>(SniperCharacterClass, DesiredSpawnLocation, FRotator::ZeroRotator, SpawnParams);
-                    if (SpawnedSniper)
-                    {
-                        Possess(SpawnedSniper);
-                        bIsSniperPlaced = true;
-                        PlacementCount++;
-                        SpawnedSniper->CurrentRow = ClickedCell->Row;
-                        SpawnedSniper->CurrentColumn = ClickedCell->Column;
-                    }
-                }
-                else if (SelectedCharacterType == "Brawler" && BrawlerCharacterClass && !SpawnedBrawler)
-                {
-                    SpawnedBrawler = GetWorld()->SpawnActor<AGameCharacter>(BrawlerCharacterClass, DesiredSpawnLocation, FRotator::ZeroRotator, SpawnParams);
-                    if (SpawnedBrawler)
-                    {
-                        Possess(SpawnedBrawler);
-                        bIsBrawlerPlaced = true;
-                        PlacementCount++;
-                        SpawnedBrawler->CurrentRow = ClickedCell->Row;
-                        SpawnedBrawler->CurrentColumn = ClickedCell->Column;
-                    }
+                    MyGameMode->NotifyPlayerUnitPlaced();
                 }
 
+                // Mostra la selezione solo dopo il primo piazzamento
                 if (PlacementCount == 1)
+                {
                     ShowCharacterSelectionWidget();
-            }
-            else if (PlacementCount == 1)
-            {
-                if (SelectedCharacterType == "Sniper" && SniperCharacterClass && !SpawnedSniper)
-                {
-                    SpawnedSniper = GetWorld()->SpawnActor<AGameCharacter>(SniperCharacterClass, DesiredSpawnLocation, FRotator::ZeroRotator, SpawnParams);
-                    if (SpawnedSniper)
-                    {
-                        Possess(SpawnedSniper);
-                        bIsSniperPlaced = true;
-                        PlacementCount++;
-                        SpawnedSniper->CurrentRow = ClickedCell->Row;
-                        SpawnedSniper->CurrentColumn = ClickedCell->Column;
-                    }
-                }
-                else if (SelectedCharacterType == "Brawler" && BrawlerCharacterClass && !SpawnedBrawler)
-                {
-                    SpawnedBrawler = GetWorld()->SpawnActor<AGameCharacter>(BrawlerCharacterClass, DesiredSpawnLocation, FRotator::ZeroRotator, SpawnParams);
-                    if (SpawnedBrawler)
-                    {
-                        Possess(SpawnedBrawler);
-                        bIsBrawlerPlaced = true;
-                        PlacementCount++;
-                        SpawnedBrawler->CurrentRow = ClickedCell->Row;
-                        SpawnedBrawler->CurrentColumn = ClickedCell->Column;
-                    }
                 }
             }
             return;
         }
     }
 
-    // Se clicchi un personaggio
+    // Clic su un'unità già posizionata
     AGameCharacter* ClickedUnit = GetClickedUnit();
     if (ClickedUnit && ClickedUnit != GetPawn())
     {
@@ -218,7 +195,7 @@ void AMyPlayerController::HandleLeftMouseClick()
         return;
     }
 
-    // Se clicchi una cella evidenziata per muoverti
+    // Clic su cella evidenziata per muoverti
     ACell_Actor* ClickedCell = GetClickedCell();
     if (ClickedCell && ClickedCell->bIsHighlighted)
     {
@@ -232,6 +209,7 @@ void AMyPlayerController::HandleLeftMouseClick()
         }
     }
 }
+
 
 void AMyPlayerController::HighlightReachableCells(AGameCharacter* SelectedCharacter)
 {
