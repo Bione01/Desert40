@@ -55,7 +55,6 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell)
         return;
     }
 
-    // Trova il Grid Manager (solo la prima volta, poi puoi salvarlo in una variabile se vuoi)
     AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
     if (!GridManager)
     {
@@ -63,17 +62,20 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell)
         return;
     }
 
-    // Calcola posizione usando i dati di griglia
     FVector StartLocation = GridManager->GetStartLocation();
     float CellStep = GridManager->GetCellStep();
 
     FVector TargetLocation = StartLocation + FVector(
         DestinationCell->Column * CellStep,
         DestinationCell->Row * CellStep,
-        0.f // o un'altezza fissa (es. 50.f)
+        UnitSpawnZOffset // ✅ QUI applichi l'offset
     );
 
     SetActorLocation(TargetLocation);
+
+    CurrentRow = DestinationCell->Row;
+    CurrentColumn = DestinationCell->Column;
+    DestinationCell->bIsOccupied = true;
 
     UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
 }

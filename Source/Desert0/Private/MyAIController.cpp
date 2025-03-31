@@ -1,51 +1,47 @@
+// MyAIController.cpp
 #include "MyAIController.h"
-#include "GameCharacter.h"              // Per la definizione completa di AGameCharacter
-#include "Kismet/GameplayStatics.h"       // Per UGameplayStatics::GetAllActorsOfClass
-#include "Engine/World.h"
+#include "GameCharacter.h"
+#include "Kismet/GameplayStatics.h"
+#include "Grid_Manager.h"
+#include "Cell_Actor.h"
+#include "MyGameModebase.h"
 
-void AMyAIController::RunTurn()
+void AMyAIController::BeginPlay()
 {
-    if (!GetPawn())
+    Super::BeginPlay();
+
+    // Ottieni il GameMode
+    GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(GetWorld()));
+    if (!GameMode)
     {
-        UE_LOG(LogTemp, Warning, TEXT("AMyAIController::RunTurn - Nessun Pawn controllato."));
-        return;
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("L'IA (%s) inizia il suo turno."), *GetPawn()->GetName());
-    
-    AGameCharacter* TargetEnemy = FindClosestEnemy();
-    if (TargetEnemy)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Nemico trovato: %s"), *TargetEnemy->GetName());
-        ExecuteAction();
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Nessun nemico trovato per %s"), *GetPawn()->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("GameMode non trovato!"));
     }
 }
 
 AGameCharacter* AMyAIController::FindClosestEnemy()
 {
+    // Recupera tutti gli attori di tipo AGameCharacter nel mondo
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundActors);
 
     AGameCharacter* ClosestEnemy = nullptr;
     float MinDistance = FLT_MAX;
+
+    // Ottieni la posizione del personaggio controllato dall'IA
     APawn* MyPawn = GetPawn();
     if (!MyPawn)
     {
         return nullptr;
     }
+
     FVector MyLocation = MyPawn->GetActorLocation();
 
+    // Itera sugli attori trovati e trova il più vicino
     for (AActor* Actor : FoundActors)
     {
         AGameCharacter* GameChar = Cast<AGameCharacter>(Actor);
-        if (GameChar && GameChar != MyPawn)
+        if (GameChar && GameChar != MyPawn) // Escludi il proprio personaggio
         {
-            // Puoi aggiungere qui una condizione per differenziare unità giocatore e IA, ad esempio:
-            // if (!GameChar->IsPlayerControlled())
             float Dist = FVector::Dist(MyLocation, GameChar->GetActorLocation());
             if (Dist < MinDistance)
             {
@@ -57,34 +53,57 @@ AGameCharacter* AMyAIController::FindClosestEnemy()
     return ClosestEnemy;
 }
 
+void AMyAIController::RunTurn()
+{
+    if (!GetPawn())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("AMyAIController::RunTurn - Nessun Pawn controllato."));
+        return;
+    }
+
+    AGameCharacter* TargetEnemy = FindClosestEnemy(); // Assicurati che FindClosestEnemy sia chiamata correttamente
+    if (TargetEnemy)
+    {
+        // Usa GetName() per ottenere il nome dell'unità come stringa
+        UE_LOG(LogTemp, Log, TEXT("Nemico trovato: %s"), *TargetEnemy->GetName());
+        ExecuteAction();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Nessun nemico trovato"));
+    }
+}
+
 void AMyAIController::ExecuteAction()
 {
     AGameCharacter* MyCharacter = Cast<AGameCharacter>(GetPawn());
     if (!MyCharacter)
     {
+        UE_LOG(LogTemp, Warning, TEXT("No character controlled by AI."));
         return;
     }
 
     AGameCharacter* TargetEnemy = FindClosestEnemy();
     if (!TargetEnemy)
     {
+        UE_LOG(LogTemp, Warning, TEXT("No enemy found for action."));
         return;
     }
 
     float Distance = FVector::Dist(MyCharacter->GetActorLocation(), TargetEnemy->GetActorLocation());
-    float MyAttackRange = MyCharacter->GetAttackRange();
-    
-    if (Distance <= MyAttackRange)
+    float AttackRange = MyCharacter->GetAttackRange();
+
+    if (Distance <= AttackRange)
     {
+        // Attacco al nemico
         UE_LOG(LogTemp, Log, TEXT("%s attacca %s"), *MyCharacter->GetName(), *TargetEnemy->GetName());
         MyCharacter->Attack(TargetEnemy);
     }
     else
     {
-        // Calcola la direzione verso il nemico e sposta l'unità fino al massimo consentito
+        // Movimento verso il nemico
         FVector Direction = (TargetEnemy->GetActorLocation() - MyCharacter->GetActorLocation()).GetSafeNormal();
-        float MoveDistance = MyCharacter->GetMaxMovement();
-        FVector NewLocation = MyCharacter->GetActorLocation() + Direction * MoveDistance;
+        FVector NewLocation = MyCharacter->GetActorLocation() + Direction * MyCharacter->GetMaxMovement();
         UE_LOG(LogTemp, Log, TEXT("%s si muove verso %s"), *MyCharacter->GetName(), *TargetEnemy->GetName());
         MyCharacter->MoveToLocation(NewLocation);
     }

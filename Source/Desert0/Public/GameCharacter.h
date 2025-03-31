@@ -57,6 +57,12 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Grid")
     int32 CurrentColumn;
     
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
+    float UnitSpawnZOffset = 50.f;
+    
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+    bool bIsAIControlled = false;
+
     // ---- Funzioni ----
 
     // Attacco verso un altro personaggio

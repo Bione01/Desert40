@@ -2,25 +2,29 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "MyGameModebase.h"
 #include "MyAIController.generated.h"
 
-/**
- * AIController semplice per un'unità in un gioco a turni.
- */
 UCLASS()
 class DESERT0_API AMyAIController : public AAIController
 {
     GENERATED_BODY()
-    
+
 public:
+    virtual void BeginPlay() override;
+
     // Funzione chiamata per eseguire il turno dell'IA
     UFUNCTION(BlueprintCallable, Category = "AI")
     void RunTurn();
 
-protected:
-    // Cerca l'unità nemica più vicina. (Assicurati che AGameCharacter sia completamente definito)
-    class AGameCharacter* FindClosestEnemy();
+    // Funzione per eseguire l'azione dell'IA (es. attacco o movimento)
+    void ExecuteAction();  // Aggiungi questa dichiarazione
 
-    // Esegue l'azione: attacca se in range, altrimenti si muove verso il nemico.
-    void ExecuteAction();
+    // Funzione per trovare il nemico più vicino
+    AGameCharacter* FindClosestEnemy();
+
+protected:
+    // Variabile per il GameMode
+    UPROPERTY()
+    class AMyGameModebase* GameMode;
 };
