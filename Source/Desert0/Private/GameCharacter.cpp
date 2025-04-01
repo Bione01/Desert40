@@ -135,3 +135,37 @@ bool AGameCharacter::CanReachCell(const ACell_Actor* DestinationCell) const
     // Movimento ortogonale, tipo Fire Emblem
     return (RowDiff + ColDiff) <= MovementRange;
 }
+void AGameCharacter::StartStepByStepMovement(const TArray<ACell_Actor*>& PathToFollow)
+{
+    if (PathToFollow.Num() <= 1)
+    {
+        OnMovementFinished.Broadcast();
+        return;
+    }
+
+    // Salva il path (escludendo la cella attuale)
+    StepPath = PathToFollow;
+    StepPath.RemoveAt(0); // Prima è la cella attuale
+
+    MoveOneStep();
+}
+
+void AGameCharacter::MoveOneStep()
+{
+    if (StepPath.Num() == 0)
+    {
+        // Fine movimento
+        GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
+        OnMovementFinished.Broadcast();
+        return;
+    }
+
+    ACell_Actor* NextCell = StepPath[0];
+    if (NextCell && !NextCell->bIsOccupied)
+    {
+        MoveToCell(NextCell);
+        StepPath.RemoveAt(0);
+    }
+
+    GetWorld()->GetTimerManager().SetTimer(StepMovementTimer, this, &AGameCharacter::MoveOneStep, 0.2f, false);
+}

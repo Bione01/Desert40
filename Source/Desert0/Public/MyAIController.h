@@ -42,6 +42,9 @@ private:
 
     UPROPERTY()
     TArray<ACell_Actor*> LastPath;
+    
+    UFUNCTION()
+    void OnCharacterMovementFinished();
 
     AGameCharacter* GetControlledCharacter() const;
 };

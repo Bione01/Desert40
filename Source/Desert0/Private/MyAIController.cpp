@@ -22,36 +22,32 @@ void AMyAIController::RunTurn()
     AGameCharacter* MyCharacter = GetControlledCharacter();
     if (!MyCharacter || !GameMode || !GridManager)
     {
-        if (GameMode) GameMode->NotifyAIUnitMoved();
         return;
     }
 
     if (MyCharacter->HasMovedThisTurn && MyCharacter->HasAttackedThisTurn)
     {
-        GameMode->NotifyAIUnitMoved();
+        MyCharacter->OnMovementFinished.Broadcast();
         return;
     }
 
     AGameCharacter* Closest = FindClosestEnemy();
     if (!Closest)
     {
-        GameMode->NotifyAIUnitMoved();
+        MyCharacter->OnMovementFinished.Broadcast();
         return;
     }
 
     bool bTargetChanged = (Closest != LastTarget);
 
-    // === Ricalcola path solo se necessario ===
     if (bTargetChanged || LastPath.Num() <= 1)
     {
         LastTarget = Closest;
-
         ACell_Actor* StartCell = GridManager->GetCellAt(MyCharacter->CurrentRow, MyCharacter->CurrentColumn);
         ACell_Actor* TargetCell = nullptr;
 
         if (MyCharacter->IsBrawler())
         {
-            // Cerca una cella ADIACENTE libera
             TArray<ACell_Actor*> AdjacentCells;
             int32 Row = Closest->CurrentRow;
             int32 Col = Closest->CurrentColumn;
@@ -66,7 +62,6 @@ void AMyAIController::RunTurn()
                 }
             }
 
-            // Scegli la più vicina
             int32 MinLength = INT_MAX;
             for (ACell_Actor* Cell : AdjacentCells)
             {
@@ -88,11 +83,9 @@ void AMyAIController::RunTurn()
                 }
             }
 
-            // Se non trova adiacente → si avvicina al target diretto
             if (!TargetCell)
             {
                 TargetCell = GridManager->GetCellAt(Closest->CurrentRow, Closest->CurrentColumn);
-
                 TArray<AGameCharacter*> Ignore;
                 for (AGameCharacter* Unit : GameMode->GetAIUnits())
                 {
@@ -101,15 +94,12 @@ void AMyAIController::RunTurn()
                         Ignore.Add(Unit);
                     }
                 }
-
                 LastPath = GridManager->FindPathAStarIgnoringUnits(StartCell, TargetCell, Ignore);
             }
         }
         else
         {
-            // Sniper → normale
             TargetCell = GridManager->GetCellAt(Closest->CurrentRow, Closest->CurrentColumn);
-
             TArray<AGameCharacter*> Ignore;
             for (AGameCharacter* Unit : GameMode->GetAIUnits())
             {
@@ -118,22 +108,20 @@ void AMyAIController::RunTurn()
                     Ignore.Add(Unit);
                 }
             }
-
             LastPath = GridManager->FindPathAStarIgnoringUnits(StartCell, TargetCell, Ignore);
         }
     }
 
-    // === Se in range → attacca ===
     float Distance = FVector::Dist(MyCharacter->GetActorLocation(), Closest->GetActorLocation());
     if (Distance <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
     {
         MyCharacter->Attack(Closest);
         MyCharacter->HasAttackedThisTurn = true;
-        GameMode->NotifyAIUnitMoved();
+        MyCharacter->OnMovementFinished.Broadcast(); // Comunica al GameMode che ha finito
         return;
+
     }
 
-    // === Movimento multiplo ===
     if (!MyCharacter->HasMovedThisTurn && LastPath.Num() > 1)
     {
         int32 MaxSteps = MyCharacter->GetMaxMovement();
@@ -150,20 +138,28 @@ void AMyAIController::RunTurn()
             }
             else
             {
-                // Se trova cella occupata → si ferma alla precedente libera
                 break;
             }
         }
 
         if (DestinationCell)
         {
-            MyCharacter->MoveToCell(DestinationCell);
-            MyCharacter->HasMovedThisTurn = true;
-
             int32 Index = LastPath.IndexOfByKey(DestinationCell);
             if (Index != INDEX_NONE)
             {
+                TArray<ACell_Actor*> SubPath;
+                for (int32 i = 0; i <= Index; ++i)
+                {
+                    SubPath.Add(LastPath[i]);
+                }
+
+                MyCharacter->OnMovementFinished.Clear();
+                MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+                MyCharacter->StartStepByStepMovement(SubPath);
+                MyCharacter->HasMovedThisTurn = true;
                 LastPath.RemoveAt(0, Index);
+                return;
+
             }
         }
         else
@@ -171,8 +167,6 @@ void AMyAIController::RunTurn()
             LastPath.Empty();
         }
     }
-
-    GameMode->NotifyAIUnitMoved();
 }
 
 void AMyAIController::UpdateTarget(AGameCharacter* NewTarget)
@@ -237,4 +231,23 @@ void AMyAIController::ClearCurrentPath()
 AGameCharacter* AMyAIController::GetControlledCharacter() const
 {
     return Cast<AGameCharacter>(GetPawn());
+}
+void AMyAIController::OnCharacterMovementFinished()
+{
+    AGameCharacter* MyCharacter = GetControlledCharacter();
+    if (!MyCharacter || !GameMode) return;
+
+    AGameCharacter* Closest = FindClosestEnemy();
+    if (Closest)
+    {
+        float Distance = FVector::Dist(MyCharacter->GetActorLocation(), Closest->GetActorLocation());
+        if (Distance <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
+        {
+            MyCharacter->Attack(Closest);
+            MyCharacter->HasAttackedThisTurn = true;
+        }
+    }
+
+    // 🔥 Non fare più il Broadcast qui! Chiama direttamente il GameMode
+    GameMode->NotifyAIUnitMoved();
 }

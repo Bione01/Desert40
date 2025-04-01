@@ -89,6 +89,18 @@ public:
     
     UFUNCTION(BlueprintCallable, Category = "Game Mode")
     void AddPlayerUnit(AGameCharacter* Unit);
+    
+    int32 CurrentAIIndex;
+   
+    UFUNCTION()
+    void StartTurn();
+    
+    UFUNCTION()
+    void ExecuteNextAIUnit();
+
+    UFUNCTION()
+    void OnAIMovementFinished();
+
 
 
 protected:

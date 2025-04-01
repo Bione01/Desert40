@@ -371,3 +371,43 @@ void AMyGameModebase::EndTurn()
     }
 }
 
+void AMyGameModebase::StartTurn()
+{
+    CurrentAIIndex = 0;
+    ExecuteNextAIUnit();
+}
+
+void AMyGameModebase::ExecuteNextAIUnit()
+{
+    if (CurrentAIIndex >= AIUnits.Num())
+    {
+        UE_LOG(LogTemp, Log, TEXT("Tutte le unità IA hanno finito di muoversi."));
+        EndTurn(); // Qui chiami il passaggio turno al Player
+        return;
+    }
+
+    AGameCharacter* AIChar = AIUnits[CurrentAIIndex];
+    AMyAIController* AIController = Cast<AMyAIController>(AIChar->GetController());
+
+    if (AIChar && AIController)
+    {
+        UE_LOG(LogTemp, Log, TEXT("IA Unit %d: %s sta iniziando il turno"), CurrentAIIndex, *AIChar->GetName());
+
+        // Scollega eventuali vecchi bind
+        AIChar->OnMovementFinished.Clear();
+
+        // Collega l'evento
+        AIChar->OnMovementFinished.AddDynamic(this, &AMyGameModebase::OnAIMovementFinished);
+
+        // Avvia il turno
+        AIController->RunTurn();
+    }
+}
+
+void AMyGameModebase::OnAIMovementFinished()
+{
+    UE_LOG(LogTemp, Log, TEXT("IA Unit %d ha finito di muoversi"), CurrentAIIndex);
+
+    CurrentAIIndex++;
+    ExecuteNextAIUnit();
+}

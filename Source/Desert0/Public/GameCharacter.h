@@ -17,8 +17,15 @@ class DESERT0_API AGameCharacter : public ACharacter
     GENERATED_BODY()
 
 public:
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMovementFinished);
+
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnMovementFinished OnMovementFinished;
+
     // Costruttore
     AGameCharacter();
+    
+    void StartStepByStepMovement(const TArray<ACell_Actor*>& PathToFollow);
 
     // Funzioni di utilità
     bool IsBrawler() const;
@@ -102,4 +109,8 @@ public:
     // Reset dello stato del turno
     UFUNCTION(BlueprintCallable, Category = "Turn State")
     void ResetTurnState();
+    
+    void MoveOneStep();
+       TArray<ACell_Actor*> StepPath;
+       FTimerHandle StepMovementTimer;
 };
