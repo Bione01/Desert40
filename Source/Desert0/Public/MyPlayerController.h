@@ -67,6 +67,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     float MovementRange = 2.f;
+    
+    UPROPERTY()
+    bool bIsMoving = false;
 
     // Funzioni accessibili dai Blueprint
     UFUNCTION(BlueprintCallable, Category = "Character Selection")
@@ -80,6 +83,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Grid")
     void ClearHighlights();
+    
+    UFUNCTION()
+    void OnPlayerMovementFinished();
 
 protected:
     void HandleLeftMouseClick();

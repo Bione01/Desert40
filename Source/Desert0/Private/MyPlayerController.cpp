@@ -201,12 +201,33 @@ void AMyPlayerController::HandleLeftMouseClick()
             AGameCharacter* ControlledCharacter = Cast<AGameCharacter>(GetPawn());
             if (ControlledCharacter)
             {
-                ControlledCharacter->MoveToCell(ClickedCell);
-                ControlledCharacter->CurrentRow = ClickedCell->Row;
-                ControlledCharacter->CurrentColumn = ClickedCell->Column;
-                ClearHighlights();
+                ACell_Actor* StartCell = GridManager->GetCellAt(ControlledCharacter->CurrentRow, ControlledCharacter->CurrentColumn);
+                ACell_Actor* TargetCell = ClickedCell;
 
-                MyGameMode->NotifyPlayerUnitMoved();
+                // Ignora le altre PlayerUnits
+                TArray<AGameCharacter*> Ignore;
+                AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
+                if (MyGameMode)
+                {
+                    for (AGameCharacter* Unit : MyGameMode->GetPlayerUnits())
+                    {
+                        if (Unit && Unit != ControlledCharacter)
+                        {
+                            Ignore.Add(Unit);
+                        }
+                    }
+                }
+
+                TArray<ACell_Actor*> Path = GridManager->FindPathAStarIgnoringUnits(StartCell, TargetCell, Ignore);
+
+                if (Path.Num() > 1) // Se path valido
+                {
+                    ControlledCharacter->OnMovementFinished.Clear();
+                    ControlledCharacter->OnMovementFinished.AddDynamic(this, &AMyPlayerController::OnPlayerMovementFinished);
+                    bIsMoving = true;
+                    ControlledCharacter->StartStepByStepMovement(Path);
+                }
+
             }
         }
     }
@@ -301,4 +322,21 @@ void AMyPlayerController::SetGameInputMode()
     FInputModeGameOnly InputMode;
     SetInputMode(InputMode);
     bShowMouseCursor = true;
+}
+void AMyPlayerController::OnPlayerMovementFinished()
+{
+    bIsMoving = false;
+    ClearHighlights();
+    AGameCharacter* ControlledCharacter = Cast<AGameCharacter>(GetPawn());
+    if (ControlledCharacter)
+    {
+        ControlledCharacter->CurrentRow = ControlledCharacter->CurrentCell->Row;
+        ControlledCharacter->CurrentColumn = ControlledCharacter->CurrentCell->Column;
+    }
+
+    AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
+    if (MyGameMode)
+    {
+        MyGameMode->NotifyPlayerUnitMoved();
+    }
 }
