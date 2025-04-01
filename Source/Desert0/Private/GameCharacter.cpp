@@ -1,6 +1,7 @@
 #include "GameCharacter.h"
 #include "Grid_Manager.h"
 #include "Cell_Actor.h"
+#include "BrawlerCharacter.h"
 #include "Kismet/GameplayStatics.h"
 
 AGameCharacter::AGameCharacter()
@@ -32,13 +33,13 @@ void AGameCharacter::Attack(AGameCharacter* Target)
     {
         return;
     }
-    
+
     // Calcola un danno casuale compreso tra DamageMin e DamageMax
     int32 DamageDealt = FMath::RandRange(DamageMin, DamageMax);
     Target->Health -= DamageDealt;
-    
+
     UE_LOG(LogTemp, Log, TEXT("%s ha attaccato %s infliggendo %d danni."), *GetName(), *Target->GetName(), DamageDealt);
-    
+
     // Se la salute del bersaglio scende a zero o sotto, logga che è stato sconfitto
     if (Target->Health <= 0)
     {
@@ -55,6 +56,20 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell)
         return;
     }
 
+    if (!CanReachCell(DestinationCell))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è fuori dal range di movimento"), DestinationCell->Row, DestinationCell->Column);
+        return;
+    }
+
+    // Libera la cella precedente
+    if (CurrentCell)
+    {
+        CurrentCell->bIsOccupied = false;
+        CurrentCell->OccupyingUnit = nullptr;
+    }
+
+    // Aggiorna posizione
     AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
     if (!GridManager)
     {
@@ -68,14 +83,17 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell)
     FVector TargetLocation = StartLocation + FVector(
         DestinationCell->Column * CellStep,
         DestinationCell->Row * CellStep,
-        UnitSpawnZOffset // ✅ QUI applichi l'offset
+        UnitSpawnZOffset
     );
 
     SetActorLocation(TargetLocation);
 
+    // Aggiorna stato
     CurrentRow = DestinationCell->Row;
     CurrentColumn = DestinationCell->Column;
     DestinationCell->bIsOccupied = true;
+    DestinationCell->OccupyingUnit = this;
+    CurrentCell = DestinationCell;
 
     UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
 }
@@ -94,4 +112,26 @@ void AGameCharacter::MoveToLocation(const FVector& NewLocation)
 {
     SetActorLocation(NewLocation);
     UE_LOG(LogTemp, Log, TEXT("%s si è spostato a %s"), *GetName(), *NewLocation.ToString());
+}
+
+void AGameCharacter::ResetTurnState()
+{
+    HasMovedThisTurn = false;
+    HasAttackedThisTurn = false;
+}
+
+bool AGameCharacter::IsBrawler() const
+{
+    return Cast<ABrawlerCharacter>(this) != nullptr;
+}
+
+bool AGameCharacter::CanReachCell(const ACell_Actor* DestinationCell) const
+{
+    if (!DestinationCell) return false;
+
+    int32 RowDiff = FMath::Abs(CurrentRow - DestinationCell->Row);
+    int32 ColDiff = FMath::Abs(CurrentColumn - DestinationCell->Column);
+
+    // Movimento ortogonale, tipo Fire Emblem
+    return (RowDiff + ColDiff) <= MovementRange;
 }

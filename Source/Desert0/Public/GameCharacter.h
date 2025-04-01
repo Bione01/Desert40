@@ -20,6 +20,10 @@ public:
     // Costruttore
     AGameCharacter();
 
+    // Funzioni di utilità
+    bool IsBrawler() const;
+    bool CanReachCell(const class ACell_Actor* DestinationCell) const;
+
     // Funzione chiamata ogni frame
     virtual void Tick(float DeltaTime) override;
 
@@ -27,6 +31,14 @@ public:
     virtual void BeginPlay() override;
 
     // ---- Statistiche dell'unità ----
+    UPROPERTY()
+    class ACell_Actor* CurrentCell;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Turn State")
+    bool HasMovedThisTurn = false;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Turn State")
+    bool HasAttackedThisTurn = false;
 
     // Numero di celle massime che può muovere
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit Stats")
@@ -50,16 +62,16 @@ public:
     // Tipo di attacco (distanza o melee)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit Stats")
     EAttackType AttackType;
-    
+
     UPROPERTY(BlueprintReadWrite, Category = "Grid")
     int32 CurrentRow;
 
     UPROPERTY(BlueprintReadWrite, Category = "Grid")
     int32 CurrentColumn;
-    
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     float UnitSpawnZOffset = 50.f;
-    
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     bool bIsAIControlled = false;
 
@@ -86,4 +98,8 @@ public:
     // Muove l'unità a una nuova posizione
     UFUNCTION(BlueprintCallable, Category = "Movement")
     void MoveToLocation(const FVector& NewLocation);
+
+    // Reset dello stato del turno
+    UFUNCTION(BlueprintCallable, Category = "Turn State")
+    void ResetTurnState();
 };

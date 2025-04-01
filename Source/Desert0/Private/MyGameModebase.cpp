@@ -11,23 +11,19 @@
 
 AMyGameModebase::AMyGameModebase()
 {
-    // Imposta il custom PlayerController
     PlayerControllerClass = AMyPlayerController::StaticClass();
-
-    // Inizialmente, il turno (di battaglia) verrà impostato quando la fase passerà a battaglia
     CurrentTurn = ETurnState::TS_PlayerTurn;
-    // La partita inizia nella fase di posizionamento
     CurrentPhase = EGamePhase::GP_Placement;
-
     PlayerUnitsPlaced = 0;
     AIUnitsPlaced = 0;
+    PlayerUnitsMoved = 0;
+    AIUnitsMoved = 0;
 }
 
 void AMyGameModebase::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Se la classe del Grid Manager è assegnata, spawnalo
     if (GridManagerClass)
     {
         FVector SpawnLocation = FVector::ZeroVector;
@@ -37,20 +33,11 @@ void AMyGameModebase::BeginPlay()
         {
             UE_LOG(LogTemp, Log, TEXT("Grid Manager spawnato con successo."));
         }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Errore nello spawn del Grid Manager."));
-        }
     }
-    
+
     bPlayerStartsPlacement = FMath::RandBool();
-       UE_LOG(LogTemp, Log, TEXT("Lancio della moneta: %s inizia il posizionamento."), bPlayerStartsPlacement ? TEXT("Giocatore") : TEXT("IA"));
+    UE_LOG(LogTemp, Log, TEXT("Lancio della moneta: %s inizia il posizionamento."), bPlayerStartsPlacement ? TEXT("Giocatore") : TEXT("IA"));
 
-    CurrentPhase = EGamePhase::GP_Placement;
-
-    UE_LOG(LogTemp, Log, TEXT("Fase di posizionamento iniziata."));
-
-    // Se l'IA deve iniziare il posizionamento, esegui subito la sua azione
     if (bPlayerStartsPlacement)
     {
         UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
@@ -60,69 +47,131 @@ void AMyGameModebase::BeginPlay()
         UE_LOG(LogTemp, Log, TEXT("L'IA sta posizionando la prima unità..."));
         PlaceAIUnit();
     }
-
 }
 
-void AMyGameModebase::StartPlayerTurn()
+void AMyGameModebase::NotifyPlayerUnitPlaced()
 {
-    CurrentTurn = ETurnState::TS_PlayerTurn;
-    UE_LOG(LogTemp, Log, TEXT("Turno del giocatore iniziato."));
-    // Qui il PlayerController abilita gli input per il giocatore
-}
+    PlayerUnitsPlaced++;
+    UE_LOG(LogTemp, Log, TEXT("Unità del Giocatore posizionata. Totale: %d"), PlayerUnitsPlaced);
 
-void AMyGameModebase::StartEnemyTurn()
-{
-    CurrentTurn = ETurnState::TS_EnemyTurn;
-    UE_LOG(LogTemp, Log, TEXT("Turno nemico iniziato."));
-    // Simula il "pensiero" dell'IA con un ritardo (es. 2 secondi)
-    GetWorldTimerManager().SetTimer(EnemyTurnTimerHandle, this, &AMyGameModebase::ExecuteEnemyTurn, 2.0f, false);
-}
-
-void AMyGameModebase::ExecuteEnemyTurn()
-{
-    UE_LOG(LogTemp, Log, TEXT("Esecuzione del turno nemico."));
-    
-    // Trova tutte le unità di gioco controllate dall'IA (dipende da come distingui le unità IA dalle unità giocatore)
-    TArray<AActor*> EnemyUnits;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), EnemyUnits);
-
-    for (AActor* Actor : EnemyUnits)
+    if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
-        AGameCharacter* GameChar = Cast<AGameCharacter>(Actor);
-        if (GameChar && !GameChar->bIsAIControlled) // Supponiamo che AGameCharacter abbia IsPlayerControlled()
+        GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::StartBattlePhase);
+    }
+
+    else
+    {
+        if (bPlayerStartsPlacement)
         {
-            if (AAIController* AIContr = Cast<AAIController>(GameChar->GetController()))
+            if (PlayerUnitsPlaced > AIUnitsPlaced)
             {
-                if (AMyAIController* MyAIContr = Cast<AMyAIController>(AIContr))
-                {
-                    MyAIContr->RunTurn();
-                }
+                PlaceAIUnit();
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            }
+        }
+        else
+        {
+            if (PlayerUnitsPlaced == AIUnitsPlaced)
+            {
+                GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
             }
         }
     }
-    
-    // Dopo aver eseguito le azioni per tutte le unità IA, termina il turno
-    EndTurn();
 }
 
-void AMyGameModebase::EndTurn()
+void AMyGameModebase::NotifyAIUnitPlaced()
 {
-    if (CurrentPhase != EGamePhase::GP_Battle)
+    AIUnitsPlaced++;
+    UE_LOG(LogTemp, Log, TEXT("Unità dell'IA posizionata. Totale: %d"), AIUnitsPlaced);
+
+    if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
-        return;
+        // Aspetta un frame per sicurezza
+        GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::StartBattlePhase);
     }
 
-    if (CurrentTurn == ETurnState::TS_PlayerTurn)
     {
-        StartEnemyTurn();
-    }
-    else
-    {
-        StartPlayerTurn();
+        if (AIUnitsPlaced >= PlayerUnitsPlaced)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+        }
+        else
+        {
+            GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
+        }
     }
 }
 
-// Notifica che il giocatore ha posizionato una unità
+void AMyGameModebase::PlaceAIUnit()
+{
+    if (!GridManager || AIUnitClasses.Num() == 0) return;
+
+    TArray<ACell_Actor*> FreeCells;
+    for (ACell_Actor* Cell : GridManager->GridCells)
+    {
+        if (Cell && !Cell->bIsOccupied && Cell->CellType != ECellType::Obstacle)
+        {
+            bool bOccupied = false;
+            TArray<AActor*> FoundCharacters;
+            UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundCharacters);
+            for (AActor* Actor : FoundCharacters)
+            {
+                AGameCharacter* Character = Cast<AGameCharacter>(Actor);
+                if (Character && Character->CurrentRow == Cell->Row && Character->CurrentColumn == Cell->Column)
+                {
+                    bOccupied = true;
+                    break;
+                }
+            }
+            if (!bOccupied)
+            {
+                FreeCells.Add(Cell);
+            }
+        }
+    }
+
+    if (FreeCells.Num() == 0 || AIUnitsPlaced >= MaxUnitsPerSide) return;
+
+    TSubclassOf<AGameCharacter> UnitToSpawn = (AIUnitsPlaced == 0) ? BrawlerCharacter : SniperCharacter;
+
+    int32 RandomIndex = FMath::RandRange(0, FreeCells.Num() - 1);
+    ACell_Actor* DestinationCell = FreeCells[RandomIndex];
+    FVector SpawnLocation = DestinationCell->GetActorLocation();
+    SpawnLocation.Z = UnitSpawnZOffset;
+
+    FRotator SpawnRotation = FRotator::ZeroRotator;
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+    AGameCharacter* SpawnedAIUnit = GetWorld()->SpawnActor<AGameCharacter>(UnitToSpawn, SpawnLocation, SpawnRotation, SpawnParams);
+    if (SpawnedAIUnit)
+    {
+        AMyAIController* AIController = GetWorld()->SpawnActor<AMyAIController>(AMyAIController::StaticClass());
+        if (AIController)
+        {
+            AIController->Possess(SpawnedAIUnit);
+        }
+
+        SpawnedAIUnit->bIsAIControlled = true;
+        SpawnedAIUnit->MoveToCell(DestinationCell);
+        SpawnedAIUnit->CurrentRow = DestinationCell->Row;
+        SpawnedAIUnit->CurrentColumn = DestinationCell->Column;
+
+        // ✅ Aggiungiamo l'unità all'array
+        AIUnits.Add(SpawnedAIUnit);
+
+        UE_LOG(LogTemp, Log, TEXT("Unità IA spawnata: %s nella cella (%d, %d)"), *SpawnedAIUnit->GetName(), DestinationCell->Row, DestinationCell->Column);
+        NotifyAIUnitPlaced();
+    }
+}
+
 void AMyGameModebase::PlacePlayerUnit()
 {
     UE_LOG(LogTemp, Log, TEXT("Il giocatore posiziona una unità."));
@@ -152,7 +201,6 @@ void AMyGameModebase::PlacePlayerUnit()
         return;
     }
 
-    // Scegli una classe casuale per il Player
     int32 RandomIndex = FMath::RandRange(0, AIUnitClasses.Num() - 1);
     TSubclassOf<AGameCharacter> SelectedClass = AIUnitClasses[RandomIndex];
 
@@ -173,6 +221,11 @@ void AMyGameModebase::PlacePlayerUnit()
     if (SpawnedPlayerUnit)
     {
         SpawnedPlayerUnit->MoveToCell(DestinationCell);
+        SpawnedPlayerUnit->bIsAIControlled = false;
+
+        // ✅ Aggiungi all'array delle unità del player
+        PlayerUnits.Add(SpawnedPlayerUnit);
+
         UE_LOG(LogTemp, Log, TEXT("Unità del giocatore spawnata con successo: %s"), *SpawnedPlayerUnit->GetName());
     }
     else
@@ -183,154 +236,12 @@ void AMyGameModebase::PlacePlayerUnit()
     NotifyPlayerUnitPlaced();
 }
 
-void AMyGameModebase::NotifyPlayerUnitPlaced()
-{
-    PlayerUnitsPlaced++;
-    UE_LOG(LogTemp, Log, TEXT("Unità del Giocatore posizionata. Totale: %d"), PlayerUnitsPlaced);
-
-    if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
-    {
-        StartBattlePhase();
-    }
-    else
-    {
-        if (bPlayerStartsPlacement)
-        {
-            // Giocatore inizia → logica normale
-            if (PlayerUnitsPlaced > AIUnitsPlaced)
-            {
-                PlaceAIUnit();
-            }
-            else
-            {
-                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-            }
-        }
-        else
-        {
-            // IA inizia → aspetta che il giocatore abbia messo almeno UNA unità
-            if (PlayerUnitsPlaced == AIUnitsPlaced)
-            {
-                GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-            }
-        }
-    }
-}
-
-void AMyGameModebase::NotifyAIUnitPlaced()
-{
-    AIUnitsPlaced++;
-    UE_LOG(LogTemp, Log, TEXT("Unità dell'IA posizionata. Totale: %d"), AIUnitsPlaced);
-
-    if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
-    {
-        StartBattlePhase();
-    }
-    else
-    {
-        if (AIUnitsPlaced >= PlayerUnitsPlaced)
-        {
-            // Tocca al giocatore
-            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-        }
-        else
-        {
-            // Dopo un leggero delay per evitare chiamate immediate
-            GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
-        }
-    }
-}
-
-void AMyGameModebase::PlaceAIUnit()
-{
-    if (!GridManager || AIUnitClasses.Num() == 0)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("GridManager non impostato o AIUnitClasses vuoto!"));
-        return;
-    }
-
-    TArray<ACell_Actor*> FreeCells;
-    for (ACell_Actor* Cell : GridManager->GridCells)
-    {
-        if (Cell && !Cell->bIsOccupied && Cell->CellType != ECellType::Obstacle)
-        {
-            bool bOccupiedByCharacter = false;
-
-            TArray<AActor*> FoundCharacters;
-            UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundCharacters);
-
-            for (AActor* Actor : FoundCharacters)
-            {
-                AGameCharacter* Character = Cast<AGameCharacter>(Actor);
-                if (Character && Character->CurrentRow == Cell->Row && Character->CurrentColumn == Cell->Column)
-                {
-                    bOccupiedByCharacter = true;
-                    break;
-                }
-            }
-
-            if (!bOccupiedByCharacter)
-            {
-                FreeCells.Add(Cell);
-            }
-        }
-    }
-
-    if (FreeCells.Num() == 0 || AIUnitsPlaced >= MaxUnitsPerSide)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Nessuna cella libera o IA ha già piazzato tutte le unità."));
-        return;
-    }
-
-    TSubclassOf<AGameCharacter> UnitToSpawn = nullptr;
-    if (AIUnitsPlaced == 0)
-    {
-        UnitToSpawn = BrawlerCharacter;
-    }
-    else if (AIUnitsPlaced == 1)
-    {
-        UnitToSpawn = SniperCharacter;
-    }
-
-    if (UnitToSpawn)
-    {
-        int32 RandomCellIndex = FMath::RandRange(0, FreeCells.Num() - 1);
-        ACell_Actor* DestinationCell = FreeCells[RandomCellIndex];
-
-        FVector SpawnLocation = DestinationCell->GetActorLocation();
-        SpawnLocation.Z = UnitSpawnZOffset;
-
-        FRotator SpawnRotation = FRotator::ZeroRotator;
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-        AGameCharacter* SpawnedAIUnit = GetWorld()->SpawnActor<AGameCharacter>(UnitToSpawn, SpawnLocation, SpawnRotation, SpawnParams);
-        if (SpawnedAIUnit)
-        {
-            AMyAIController* AIController = GetWorld()->SpawnActor<AMyAIController>(AMyAIController::StaticClass());
-            if (AIController)
-            {
-                AIController->Possess(SpawnedAIUnit);
-            }
-
-            SpawnedAIUnit->MoveToCell(DestinationCell);
-            UE_LOG(LogTemp, Log, TEXT("Unità IA spawnata: %s nella cella (%d, %d)"), *SpawnedAIUnit->GetName(), DestinationCell->Row, DestinationCell->Column);
-
-            NotifyAIUnitPlaced();
-        }
-    }
-}
-
-
 void AMyGameModebase::StartBattlePhase()
 {
     CurrentPhase = EGamePhase::GP_Battle;
     UE_LOG(LogTemp, Log, TEXT("Fase di battaglia iniziata."));
-
+    PlayerUnitsMoved = 0;
+    AIUnitsMoved = 0;
     if (bPlayerStartsPlacement)
     {
         StartPlayerTurn();
@@ -340,3 +251,123 @@ void AMyGameModebase::StartBattlePhase()
         StartEnemyTurn();
     }
 }
+
+void AMyGameModebase::StartPlayerTurn()
+{
+    CurrentTurn = ETurnState::TS_PlayerTurn;
+    PlayerUnitsMoved = 0;
+    UE_LOG(LogTemp, Log, TEXT("Turno del giocatore iniziato."));
+    
+    for (AGameCharacter* Unit : PlayerUnits)
+    {
+        if (Unit)
+        {
+            Unit->HasMovedThisTurn = false;
+            Unit->HasAttackedThisTurn = false;
+        }
+    }
+}
+
+void AMyGameModebase::StartEnemyTurn()
+{
+    CurrentTurn = ETurnState::TS_EnemyTurn;
+    AIUnitsMoved = 0;
+    CurrentAIUnitIndex = 0;
+    UE_LOG(LogTemp, Log, TEXT("Turno nemico iniziato."));
+
+    for (AGameCharacter* Unit : AIUnits)
+    {
+        if (Unit)
+        {
+            Unit->HasMovedThisTurn = false;
+            Unit->HasAttackedThisTurn = false;
+
+            // 🔥 Pulizia del path
+            AMyAIController* AIController = Cast<AMyAIController>(Unit->GetController());
+            if (AIController)
+            {
+                AIController->ClearCurrentPath();
+            }
+        }
+    }
+
+    MoveNextAIUnit();
+}
+
+
+void AMyGameModebase::NotifyPlayerUnitMoved()
+{
+    PlayerUnitsMoved++;
+    if (PlayerUnitsMoved >= MaxUnitsPerSide)
+    {
+        EndTurn();
+    }
+}
+
+void AMyGameModebase::NotifyAIUnitMoved()
+{
+    CurrentAIUnitIndex++;
+
+    if (CurrentAIUnitIndex >= AIUnits.Num())
+    {
+        UE_LOG(LogTemp, Log, TEXT("Tutte le unità IA hanno agito. Passo il turno al Player."));
+        GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::EndTurn);
+    }
+    else
+    {
+        GetWorldTimerManager().SetTimer(
+            EnemyTurnTimerHandle,
+            this,
+            &AMyGameModebase::MoveNextAIUnit,
+            0.3f, // Delay visivo
+            false
+        );
+    }
+}
+
+void AMyGameModebase::AddPlayerUnit(AGameCharacter* Unit)
+{
+    if (Unit)
+    {
+        PlayerUnits.Add(Unit);
+    }
+}
+
+void AMyGameModebase::MoveNextAIUnit()
+{
+    if (CurrentAIUnitIndex >= AIUnits.Num())
+    {
+        UE_LOG(LogTemp, Log, TEXT("Tutte le unità AI hanno agito. Passo il turno al Player."));
+        GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::EndTurn);
+        return;
+    }
+
+    AGameCharacter* AIUnit = AIUnits[CurrentAIUnitIndex];
+    if (AIUnit && AIUnit->IsValidLowLevel())
+    {
+        AMyAIController* AIController = Cast<AMyAIController>(AIUnit->GetController());
+        if (AIController)
+        {
+            UE_LOG(LogTemp, Log, TEXT("L'IA controlla: %s"), *AIUnit->GetName());
+            AIController->RunTurn();
+        }
+    }
+}
+
+
+void AMyGameModebase::EndTurn()
+{
+    if (CurrentPhase != EGamePhase::GP_Battle) return;
+
+    if (CurrentTurn == ETurnState::TS_PlayerTurn)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Turno del Player finito. Inizio turno IA."));
+        StartEnemyTurn();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("Turno dell'IA finito. Inizio turno Player."));
+        StartPlayerTurn();
+    }
+}
+

@@ -15,7 +15,4 @@ public:
     ASniperCharacter();
 
     virtual void MoveToCell(ACell_Actor* DestinationCell) override;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Movement")
-    ACell_Actor* CurrentCell;
 };

@@ -2,8 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
-#include "MyGameModebase.h"
 #include "MyAIController.generated.h"
+
+class AGameCharacter;
+class AGrid_Manager;
+class ACell_Actor;
+class AMyGameModebase;
 
 UCLASS()
 class DESERT0_API AMyAIController : public AAIController
@@ -12,19 +16,32 @@ class DESERT0_API AMyAIController : public AAIController
 
 public:
     virtual void BeginPlay() override;
-
-    // Funzione chiamata per eseguire il turno dell'IA
-    UFUNCTION(BlueprintCallable, Category = "AI")
     void RunTurn();
+    void ClearCurrentPath(); // La funzione ClearCurrentPath è dichiarata una sola volta qui
 
-    // Funzione per eseguire l'azione dell'IA (es. attacco o movimento)
-    void ExecuteAction();  // Aggiungi questa dichiarazione
-
-    // Funzione per trovare il nemico più vicino
+private:
     AGameCharacter* FindClosestEnemy();
 
-protected:
-    // Variabile per il GameMode
+    // Funzione per aggiornare il target
+    void UpdateTarget(AGameCharacter* NewTarget);
+
     UPROPERTY()
-    class AMyGameModebase* GameMode;
+    AMyGameModebase* GameMode;
+
+    UPROPERTY()
+    AGrid_Manager* GridManager;
+
+    UPROPERTY()
+    AGameCharacter* CurrentTarget;
+
+    UPROPERTY()
+    TArray<ACell_Actor*> CurrentPath;
+    
+    UPROPERTY()
+    AGameCharacter* LastTarget = nullptr;
+
+    UPROPERTY()
+    TArray<ACell_Actor*> LastPath;
+
+    AGameCharacter* GetControlledCharacter() const;
 };

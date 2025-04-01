@@ -1,6 +1,8 @@
 #include "Grid_Manager.h"
+#include "GameCharacter.h"
 #include "Cell_Actor.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 
 AGrid_Manager::AGrid_Manager()
 {
@@ -63,7 +65,7 @@ void AGrid_Manager::CreateGrid()
             FRotator SpawnRotation = FRotator::ZeroRotator;
             FActorSpawnParameters SpawnParams;
 
-            bool bIsObstacle = FMath::RandRange(0, 100) < 10;
+            bool bIsObstacle = FMath::RandRange(0, 100) < 0;
 
             if (bIsObstacle)
             {
@@ -92,4 +94,128 @@ void AGrid_Manager::CreateGrid()
 TArray<ACell_Actor*> AGrid_Manager::GetAllCells() const
 {
     return GridCells;
+}
+ACell_Actor* AGrid_Manager::GetCellAt(int32 Row, int32 Column) const
+{
+    for (ACell_Actor* Cell : GridCells)
+    {
+        if (Cell && Cell->Row == Row && Cell->Column == Column)
+        {
+            return Cell;
+        }
+    }
+    return nullptr;
+}
+
+TArray<ACell_Actor*> AGrid_Manager::FindPathAStarIgnoringUnits(ACell_Actor* StartCell, ACell_Actor* TargetCell, const TArray<AGameCharacter*>& UnitsToIgnore)
+{
+    TArray<FCellNode> Nodes;
+    for (ACell_Actor* Cell : GridCells)
+    {
+        if (Cell)
+        {
+            Nodes.Add(FCellNode(Cell));
+        }
+    }
+
+    FCellNode* StartNode = nullptr;
+    FCellNode* TargetNode = nullptr;
+
+    for (FCellNode& Node : Nodes)
+    {
+        if (Node.Cell == StartCell)
+        {
+            StartNode = &Node;
+        }
+        if (Node.Cell == TargetCell)
+        {
+            TargetNode = &Node;
+        }
+    }
+
+    if (!StartNode || !TargetNode)
+    {
+        return TArray<ACell_Actor*>();
+    }
+
+    StartNode->Cost = 0.f;
+    StartNode->Heuristic = FMath::Abs(StartCell->Row - TargetCell->Row) + FMath::Abs(StartCell->Column - TargetCell->Column);
+
+    TArray<FCellNode*> OpenSet;
+    TSet<FCellNode*> ClosedSet;
+    OpenSet.Add(StartNode);
+
+    while (OpenSet.Num() > 0)
+    {
+        // Ordina per (Cost + Heuristic)
+        OpenSet.Sort([](const FCellNode& A, const FCellNode& B)
+        {
+            return (A.Cost + A.Heuristic) < (B.Cost + B.Heuristic);
+        });
+
+        FCellNode* CurrentNode = OpenSet[0];
+        OpenSet.RemoveAt(0);
+        ClosedSet.Add(CurrentNode);
+
+        if (CurrentNode == TargetNode)
+        {
+            break;
+        }
+
+        for (FCellNode& Neighbor : Nodes)
+        {
+            if (!Neighbor.Cell || Neighbor.Cell->CellType == ECellType::Obstacle || ClosedSet.Contains(&Neighbor))
+            {
+                continue;
+            }
+
+            int32 RowDiff = FMath::Abs(Neighbor.Cell->Row - CurrentNode->Cell->Row);
+            int32 ColDiff = FMath::Abs(Neighbor.Cell->Column - CurrentNode->Cell->Column);
+
+            if (!((RowDiff == 1 && ColDiff == 0) || (RowDiff == 0 && ColDiff == 1)))
+            {
+                continue;
+            }
+
+            bool bIsOccupied = false;
+            if (Neighbor.Cell->bIsOccupied && !UnitsToIgnore.Contains(Neighbor.Cell->OccupyingUnit) && Neighbor.Cell != TargetCell)
+            {
+                bIsOccupied = true;
+            }
+
+            if (bIsOccupied)
+            {
+                continue;
+            }
+
+            float NewCost = CurrentNode->Cost + 1.f;
+            if (NewCost < Neighbor.Cost)
+            {
+                Neighbor.Cost = NewCost;
+                Neighbor.Previous = CurrentNode;
+                Neighbor.Heuristic = FMath::Abs(Neighbor.Cell->Row - TargetCell->Row) + FMath::Abs(Neighbor.Cell->Column - TargetCell->Column);
+
+                if (!OpenSet.Contains(&Neighbor))
+                {
+                    OpenSet.Add(&Neighbor);
+                }
+            }
+        }
+    }
+
+    // === Ricostruzione percorso ===
+    TArray<ACell_Actor*> Path;
+    FCellNode* Current = TargetNode;
+    while (Current && Current->Previous)
+    {
+        Path.Insert(Current->Cell, 0);
+        Current = Current->Previous;
+    }
+
+    if (StartNode)
+    {
+        Path.Insert(StartNode->Cell, 0);
+    }
+
+    return Path;
 }
