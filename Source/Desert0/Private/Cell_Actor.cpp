@@ -52,4 +52,17 @@ void ACell_Actor::SetHighlight(bool bHighlight)
     }
 }
 
-
+void ACell_Actor::SetAttackHighlight(bool bHighlight)
+{
+    if (MyMesh)
+    {
+        if (bHighlight && AttackHighlightMaterial)
+        {
+            MyMesh->SetMaterial(0, AttackHighlightMaterial);
+        }
+        else if (DefaultMaterial)
+        {
+            MyMesh->SetMaterial(0, DefaultMaterial);
+        }
+    }
+}

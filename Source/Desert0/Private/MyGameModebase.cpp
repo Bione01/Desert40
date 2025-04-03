@@ -244,6 +244,13 @@ void AMyGameModebase::StartBattlePhase()
     AIUnitsMoved = 0;
     if (bPlayerStartsPlacement)
     {
+        // Aggiorna occupazione celle dopo il piazzamento
+        AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+        if (PC)
+        {
+            PC->RefreshCellOccupancy();
+        }
+        
         StartPlayerTurn();
     }
     else

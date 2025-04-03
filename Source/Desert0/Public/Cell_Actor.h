@@ -61,5 +61,10 @@ public:
     UPROPERTY(EditAnywhere)
     UMaterialInterface* HighlightMaterial;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+    UMaterialInterface* AttackHighlightMaterial;
+
+    UFUNCTION(BlueprintCallable)
+    void SetAttackHighlight(bool bHighlight);
 
 };

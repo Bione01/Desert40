@@ -154,7 +154,7 @@ void AMyPlayerController::HandleLeftMouseClick()
     if (MyGameMode->CurrentPhase == EGamePhase::GP_Battle && MyGameMode->CurrentTurn == ETurnState::TS_PlayerTurn)
     {
         // Se stiamo aspettando un attacco dopo il movimento
-        if (bIsWaitingForAttack && SelectedCharacter)
+        if (bIsWaitingForAttack && SelectedCharacter && !bIsMoving)
         {
             AGameCharacter* ClickedEnemy = GetClickedUnit();
             if (ClickedEnemy && MyGameMode->GetAIUnits().Contains(ClickedEnemy))
@@ -165,6 +165,7 @@ void AMyPlayerController::HandleLeftMouseClick()
                 {
                     SelectedCharacter->Attack(ClickedEnemy);
                     SelectedCharacter->HasAttackedThisTurn = true;
+                    SelectedCharacter->HasMovedThisTurn = true;
                     bIsWaitingForAttack = false;
                     CheckEndOfPlayerUnitTurn();
                     return;
@@ -189,9 +190,10 @@ void AMyPlayerController::HandleLeftMouseClick()
                     UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco diretto a inizio turno."));
                     SelectedCharacter->Attack(ClickedEnemy);
                     SelectedCharacter->HasAttackedThisTurn = true;
-                    CheckEndOfPlayerUnitTurn();
                     SelectedCharacter->HasMovedThisTurn = true;
-                              CheckEndOfPlayerUnitTurn();                    return;
+                    bIsWaitingForAttack = false;
+                    CheckEndOfPlayerUnitTurn();
+                    return;
                 }
             }
         }
@@ -201,18 +203,51 @@ void AMyPlayerController::HandleLeftMouseClick()
         // Click su un'unità Player
         if (ClickedUnit && MyGameMode->GetPlayerUnits().Contains(ClickedUnit))
         {
+            // === Se clicco sulla stessa unità già selezionata ===
             if (SelectedCharacter == ClickedUnit)
             {
+                if (bIsWaitingForAttack)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato cliccando di nuovo sull'unità."));
+                    bIsWaitingForAttack = false;
+                    SelectedCharacter->HasAttackedThisTurn = true;
+                    CheckEndOfPlayerUnitTurn();
+                    return;
+                }
+                else if (SelectedCharacter->HasMovedThisTurn && !SelectedCharacter->HasAttackedThisTurn)
+                {
+                    // Anche se non era in attesa formale, consenti di skippare cliccando di nuovo
+                    UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato cliccando su unità già mossa."));
+                    bIsWaitingForAttack = false;
+                    SelectedCharacter->HasAttackedThisTurn = true;
+                    CheckEndOfPlayerUnitTurn();
+                    return;
+                }
+
                 DeselectCurrentUnit();
                 return;
             }
 
+            // === Se clicco un'altra unità mentre sto aspettando attacco → skip ===
+            if (bIsWaitingForAttack && SelectedCharacter && SelectedCharacter != ClickedUnit)
+            {
+                UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato selezionando altra unità."));
+                bIsWaitingForAttack = false;
+                SelectedCharacter->HasAttackedThisTurn = true;
+                CheckEndOfPlayerUnitTurn();
+            }
+            // Se l'unità non ha ancora mosso, la seleziono
             if (!ClickedUnit->HasMovedThisTurn)
             {
                 DeselectCurrentUnit();
                 SelectedCharacter = ClickedUnit;
                 Possess(ClickedUnit);
+
+                // 🔥 Aggiorna occupazione prima di calcolare highlight
+                RefreshCellOccupancy();
+
                 HighlightReachableCells(ClickedUnit);
+                HighlightEnemyCellsInRange();
                 return;
             }
             else
@@ -222,6 +257,7 @@ void AMyPlayerController::HandleLeftMouseClick()
             }
         }
 
+
         // Click su una cella evidenziata per il movimento
         ACell_Actor* ClickedCell = GetClickedCell();
         if (ClickedCell && ClickedCell->bIsHighlighted && SelectedCharacter)
@@ -230,9 +266,11 @@ void AMyPlayerController::HandleLeftMouseClick()
             ACell_Actor* TargetCell = ClickedCell;
 
             TArray<AGameCharacter*> UnitsToIgnore;
-            for (AGameCharacter* Unit : MyGameMode->GetPlayerUnits())
+            // Ignora solo le AIUnits (come ostacoli "mobili")
+            // Le PlayerUnits ora sono ostacoli e non vengono ignorate
+            for (AGameCharacter* Unit : MyGameMode->GetAIUnits())
             {
-                if (Unit && Unit != SelectedCharacter)
+                if (Unit)
                 {
                     UnitsToIgnore.Add(Unit);
                 }
@@ -292,18 +330,21 @@ void AMyPlayerController::HighlightReachableCells(AGameCharacter* CharacterToHig
 
         ACell_Actor* CurrentCell = *FoundCell;
 
-        // Blocca propagazione su ostacoli e AIUnits
+        // Blocca propagazione su ostacoli e qualsiasi unità (AI o Player), tranne la selezionata
         AGameCharacter* OccupyingCharacter = Cast<AGameCharacter>(CurrentCell->OccupyingUnit);
         if (CurrentCell->CellType == ECellType::Obstacle ||
-            (CurrentCell->bIsOccupied && OccupyingCharacter && OccupyingCharacter->bIsAIControlled))
+            (CurrentCell->bIsOccupied && OccupyingCharacter && OccupyingCharacter != SelectedCharacter))
         {
             continue;
         }
+
 
         // Evidenzia solo se non è la cella di partenza
         if (Distance > 0)
         {
             CurrentCell->SetHighlight(true);
+
+
         }
 
         // Propagazione
@@ -345,20 +386,30 @@ void AMyPlayerController::RefreshCellOccupancy()
         }
     }
 
-    // Ricalcola occupazione per PlayerUnits
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
-    if (MyGameMode)
+    if (!MyGameMode) return;
+
+    // Player Units
+    for (AGameCharacter* Unit : MyGameMode->GetPlayerUnits())
     {
-        for (AGameCharacter* Unit : MyGameMode->GetPlayerUnits())
+        if (Unit && Unit->CurrentCell)
         {
-            if (Unit && Unit->CurrentCell)
-            {
-                Unit->CurrentCell->bIsOccupied = true;
-                Unit->CurrentCell->OccupyingUnit = Unit;
-            }
+            Unit->CurrentCell->bIsOccupied = true;
+            Unit->CurrentCell->OccupyingUnit = Unit;
+        }
+    }
+
+    // AI Units
+    for (AGameCharacter* Unit : MyGameMode->GetAIUnits())
+    {
+        if (Unit && Unit->CurrentCell)
+        {
+            Unit->CurrentCell->bIsOccupied = true;
+            Unit->CurrentCell->OccupyingUnit = Unit;
         }
     }
 }
+
 
 void AMyPlayerController::ClearHighlights()
 {
@@ -370,9 +421,11 @@ void AMyPlayerController::ClearHighlights()
         if (Cell)
         {
             Cell->SetHighlight(false);
+            Cell->SetAttackHighlight(false);
         }
     }
 }
+
 
 void AMyPlayerController::SetGameInputMode(bool bGameOnly)
 {
@@ -393,7 +446,7 @@ void AMyPlayerController::SetGameInputMode(bool bGameOnly)
 void AMyPlayerController::OnPlayerMovementFinished()
 {
     bIsMoving = false;
-    ClearHighlights();
+    UpdateHighlights();
 
     if (!SelectedCharacter) return;
 
@@ -421,6 +474,8 @@ void AMyPlayerController::OnPlayerMovementFinished()
 
     SelectedCharacter->HasMovedThisTurn = true;
 
+    HighlightEnemyCellsInRange();
+    
     if (bAttacked)
     {
         UE_LOG(LogTemp, Log, TEXT("Attacco eseguito dopo il movimento."));
@@ -481,7 +536,6 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
 
-    // Dopo il movimento controlla se ci sono nemici in range
     bool bEnemyInRange = false;
     for (AGameCharacter* Enemy : MyGameMode->GetAIUnits())
     {
@@ -498,6 +552,8 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
     }
 
     SelectedCharacter->HasMovedThisTurn = true;
+
+    HighlightEnemyCellsInRange(); // 🔥 Qui aggiorna le celle rosse
 
     if (bEnemyInRange)
     {
@@ -521,6 +577,19 @@ void AMyPlayerController::DeselectCurrentUnit()
         UE_LOG(LogTemp, Log, TEXT("Unità deselezionata."));
     }
 }
+
+void AMyPlayerController::SkipCurrentAttack()
+{
+    if (SelectedCharacter && SelectedCharacter->HasMovedThisTurn && !SelectedCharacter->HasAttackedThisTurn)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato su %s"), *SelectedCharacter->GetName());
+        SelectedCharacter->HasAttackedThisTurn = true;
+        bIsWaitingForAttack = false;
+
+        CheckEndOfPlayerUnitTurn();
+    }
+}
+
 void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
 {
     if (SelectedCharacterType == NAME_None)
@@ -570,7 +639,8 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
         PlacementCount++;
         SpawnedUnit->CurrentRow = ClickedCell->Row;
         SpawnedUnit->CurrentColumn = ClickedCell->Column;
-
+        SpawnedUnit->CurrentCell = ClickedCell;
+        
         MyGameMode->AddPlayerUnit(SpawnedUnit);
         MyGameMode->NotifyPlayerUnitPlaced();
 
@@ -583,4 +653,33 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
             ShowCharacterSelectionWidget();
         }
     }
+}
+
+void AMyPlayerController::HighlightEnemyCellsInRange()
+{
+    if (!GridManager || !SelectedCharacter) return;
+
+    AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
+    if (!MyGameMode) return;
+
+    for (AGameCharacter* Enemy : MyGameMode->GetAIUnits())
+    {
+        if (Enemy && Enemy->CurrentCell)
+        {
+            int32 RowDiff = FMath::Abs(SelectedCharacter->CurrentRow - Enemy->CurrentRow);
+            int32 ColDiff = FMath::Abs(SelectedCharacter->CurrentColumn - Enemy->CurrentColumn);
+            if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
+            {
+                Enemy->CurrentCell->SetAttackHighlight(true);
+// 🔥 Qui evidenzi in rosso
+            }
+        }
+    }
+}
+
+void AMyPlayerController::UpdateHighlights()
+{
+    ClearHighlights();
+    HighlightReachableCells(SelectedCharacter);
+    HighlightEnemyCellsInRange();
 }

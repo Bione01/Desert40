@@ -90,6 +90,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Grid")
     void RefreshCellOccupancy();
+    
+    UFUNCTION(BlueprintCallable, Category = "Grid")
+    void HighlightEnemyCellsInRange();
 
     UFUNCTION()
     void OnPlayerMovementFinished();
@@ -105,6 +108,12 @@ public:
     
     UFUNCTION()
     void HandlePlacementClick(class AMyGameModebase* MyGameMode);
+    
+    UFUNCTION()
+    void UpdateHighlights();
+    
+    UFUNCTION()
+    void SkipCurrentAttack();
 
     void SetGameInputMode(bool bGameOnly);
 
