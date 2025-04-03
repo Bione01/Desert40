@@ -257,30 +257,59 @@ AGameCharacter* AMyAIController::FindClosestEnemy()
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundActors);
 
     AGameCharacter* MyCharacter = GetControlledCharacter();
-    if (!MyCharacter)
-    {
-        return nullptr;
-    }
+    if (!MyCharacter) return nullptr;
 
-    AGameCharacter* ClosestEnemy = nullptr;
-    float MinDistance = FLT_MAX;
+    AGameCharacter* ClosestSniper = nullptr;
+    AGameCharacter* ClosestOther = nullptr;
+    float MinDistanceSniper = FLT_MAX;
+    float MinDistanceOther = FLT_MAX;
 
     for (AActor* Actor : FoundActors)
     {
         AGameCharacter* GameChar = Cast<AGameCharacter>(Actor);
         if (GameChar && !GameChar->bIsAIControlled)
         {
-            float Dist = FVector::Dist(MyCharacter->GetActorLocation(), GameChar->GetActorLocation());
-            if (Dist < MinDistance)
+            int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - GameChar->CurrentRow);
+            int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - GameChar->CurrentColumn);
+            int32 Distance = RowDiff + ColDiff;
+
+            if (GameChar->IsSniper())
             {
-                MinDistance = Dist;
-                ClosestEnemy = GameChar;
+                if (Distance < MinDistanceSniper)
+                {
+                    MinDistanceSniper = Distance;
+                    ClosestSniper = GameChar;
+                }
+            }
+            else
+            {
+                if (Distance < MinDistanceOther)
+                {
+                    MinDistanceOther = Distance;
+                    ClosestOther = GameChar;
+                }
             }
         }
     }
 
-    return ClosestEnemy;
+    int32 MoveRange = MyCharacter->GetMaxMovement();
+    bool bSniperInRange = (MinDistanceSniper <= MoveRange);
+    bool bOtherInRange = (MinDistanceOther <= MoveRange);
+
+    // 🎯 Se entrambi in range, preferisci lo Sniper
+    if (bSniperInRange && bOtherInRange)
+    {
+        return ClosestSniper;
+    }
+
+    // Se solo uno in range, ritorna quello
+    if (bSniperInRange) return ClosestSniper;
+    if (bOtherInRange) return ClosestOther;
+
+    // Nessuno in range: ritorna il più vicino in assoluto
+    return (MinDistanceSniper < MinDistanceOther) ? ClosestSniper : ClosestOther;
 }
+
 
 void AMyAIController::ClearCurrentPath()
 {
