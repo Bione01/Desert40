@@ -106,8 +106,7 @@ ACell_Actor* AGrid_Manager::GetCellAt(int32 Row, int32 Column) const
     }
     return nullptr;
 }
-
-TArray<ACell_Actor*> AGrid_Manager::FindPathAStarIgnoringUnits(ACell_Actor* StartCell, ACell_Actor* TargetCell, const TArray<AGameCharacter*>& UnitsToIgnore)
+TArray<ACell_Actor*> AGrid_Manager::FindPathAStarAvoidingUnits(ACell_Actor* StartCell, ACell_Actor* TargetCell, const TArray<AGameCharacter*>& UnitsToIgnore)
 {
     TArray<FCellNode> Nodes;
     for (ACell_Actor* Cell : GridCells)

@@ -139,21 +139,17 @@ void AMyPlayerController::HandleLeftMouseClick()
     if (!MyGameMode) return;
 
     if (bIsMoving && MyGameMode->CurrentPhase == EGamePhase::GP_Battle)
-    {
         return;
-    }
 
-    // === FASE POSIZIONAMENTO ===
     if (MyGameMode->CurrentPhase == EGamePhase::GP_Placement)
     {
         HandlePlacementClick(MyGameMode);
         return;
     }
 
-    // === FASE BATTAGLIA ===
     if (MyGameMode->CurrentPhase == EGamePhase::GP_Battle && MyGameMode->CurrentTurn == ETurnState::TS_PlayerTurn)
     {
-        // Se stiamo aspettando un attacco dopo il movimento
+        // === Attacco in attesa dopo movimento ===
         if (bIsWaitingForAttack && SelectedCharacter && !bIsMoving)
         {
             AGameCharacter* ClickedEnemy = GetClickedUnit();
@@ -172,12 +168,12 @@ void AMyPlayerController::HandleLeftMouseClick()
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[BATTLE] Nemico fuori dal range d'attacco."));
+                    UE_LOG(LogTemp, Warning, TEXT("[BATTLE] Nemico fuori range."));
                 }
             }
         }
 
-        // === ATTACCO DIRETTO A INIZIO TURNO ===
+        // === Attacco diretto a inizio turno ===
         if (!bIsMoving && SelectedCharacter && !SelectedCharacter->HasMovedThisTurn && !SelectedCharacter->HasAttackedThisTurn)
         {
             AGameCharacter* ClickedEnemy = GetClickedUnit();
@@ -187,7 +183,6 @@ void AMyPlayerController::HandleLeftMouseClick()
                 int32 ColDiff = FMath::Abs(SelectedCharacter->CurrentColumn - ClickedEnemy->CurrentColumn);
                 if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
                 {
-                    UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco diretto a inizio turno."));
                     SelectedCharacter->Attack(ClickedEnemy);
                     SelectedCharacter->HasAttackedThisTurn = true;
                     SelectedCharacter->HasMovedThisTurn = true;
@@ -198,17 +193,14 @@ void AMyPlayerController::HandleLeftMouseClick()
             }
         }
 
+        // === Click su PlayerUnit ===
         AGameCharacter* ClickedUnit = GetClickedUnit();
-
-        // Click su un'unità Player
         if (ClickedUnit && MyGameMode->GetPlayerUnits().Contains(ClickedUnit))
         {
-            // === Se clicco sulla stessa unità già selezionata ===
             if (SelectedCharacter == ClickedUnit)
             {
                 if (bIsWaitingForAttack)
                 {
-                    UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato cliccando di nuovo sull'unità."));
                     bIsWaitingForAttack = false;
                     SelectedCharacter->HasAttackedThisTurn = true;
                     CheckEndOfPlayerUnitTurn();
@@ -216,8 +208,6 @@ void AMyPlayerController::HandleLeftMouseClick()
                 }
                 else if (SelectedCharacter->HasMovedThisTurn && !SelectedCharacter->HasAttackedThisTurn)
                 {
-                    // Anche se non era in attesa formale, consenti di skippare cliccando di nuovo
-                    UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato cliccando su unità già mossa."));
                     bIsWaitingForAttack = false;
                     SelectedCharacter->HasAttackedThisTurn = true;
                     CheckEndOfPlayerUnitTurn();
@@ -228,24 +218,19 @@ void AMyPlayerController::HandleLeftMouseClick()
                 return;
             }
 
-            // === Se clicco un'altra unità mentre sto aspettando attacco → skip ===
             if (bIsWaitingForAttack && SelectedCharacter && SelectedCharacter != ClickedUnit)
             {
-                UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato selezionando altra unità."));
                 bIsWaitingForAttack = false;
                 SelectedCharacter->HasAttackedThisTurn = true;
                 CheckEndOfPlayerUnitTurn();
             }
-            // Se l'unità non ha ancora mosso, la seleziono
+
             if (!ClickedUnit->HasMovedThisTurn)
             {
                 DeselectCurrentUnit();
                 SelectedCharacter = ClickedUnit;
                 Possess(ClickedUnit);
-
-                // 🔥 Aggiorna occupazione prima di calcolare highlight
                 RefreshCellOccupancy();
-
                 HighlightReachableCells(ClickedUnit);
                 HighlightEnemyCellsInRange();
                 return;
@@ -257,8 +242,7 @@ void AMyPlayerController::HandleLeftMouseClick()
             }
         }
 
-
-        // Click su una cella evidenziata per il movimento
+        // === Movimento su cella evidenziata ===
         ACell_Actor* ClickedCell = GetClickedCell();
         if (ClickedCell && ClickedCell->bIsHighlighted && SelectedCharacter)
         {
@@ -266,28 +250,68 @@ void AMyPlayerController::HandleLeftMouseClick()
             ACell_Actor* TargetCell = ClickedCell;
 
             TArray<AGameCharacter*> UnitsToIgnore;
-            // Ignora solo le AIUnits (come ostacoli "mobili")
-            // Le PlayerUnits ora sono ostacoli e non vengono ignorate
-            for (AGameCharacter* Unit : MyGameMode->GetAIUnits())
+            UnitsToIgnore.Add(SelectedCharacter);
+            TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, TargetCell, UnitsToIgnore);
+
+            // === Se la destinazione è bloccata, cerca alternativa ===
+            if (Path.Num() <= 1)
             {
-                if (Unit)
+                UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Destinazione occupata, cerco alternativa..."));
+                ACell_Actor* AlternativeCell = nullptr;
+                int32 BestDistance = MAX_int32;
+
+                const TArray<FIntPoint> Directions = {
+                    FIntPoint(1, 0),
+                    FIntPoint(-1, 0),
+                    FIntPoint(0, 1),
+                    FIntPoint(0, -1)
+                };
+
+                for (const FIntPoint& Dir : Directions)
                 {
-                    UnitsToIgnore.Add(Unit);
+                    int32 NewRow = TargetCell->Row + Dir.X;
+                    int32 NewCol = TargetCell->Column + Dir.Y;
+                    ACell_Actor* Neighbor = GridManager->GetCellAt(NewRow, NewCol);
+
+                    if (Neighbor && !Neighbor->bIsOccupied && Neighbor->CellType != ECellType::Obstacle)
+                    {
+                        TArray<AGameCharacter*> UnitsToIgnore;
+                        UnitsToIgnore.Add(SelectedCharacter);
+                        TArray<ACell_Actor*> AltPath = GridManager->FindPathAStarAvoidingUnits(StartCell, Neighbor, UnitsToIgnore);
+
+                        if (AltPath.Num() > 1)
+                        {
+                            int32 Distance = FMath::Abs(Neighbor->Row - StartCell->Row) + FMath::Abs(Neighbor->Column - StartCell->Column);
+                            if (Distance < BestDistance)
+                            {
+                                BestDistance = Distance;
+                                AlternativeCell = Neighbor;
+                                Path = AltPath;
+                            }
+                        }
+                    }
+                }
+
+                if (!AlternativeCell)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Nessuna cella alternativa trovata."));
+                    return;
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Percorso trovato verso alternativa (%d, %d)."), AlternativeCell->Row, AlternativeCell->Column);
                 }
             }
 
-            TArray<ACell_Actor*> Path = GridManager->FindPathAStarIgnoringUnits(StartCell, TargetCell, UnitsToIgnore);
-
-            if (Path.Num() > 1)
-            {
-                SelectedCharacter->OnMovementFinished.Clear();
-                SelectedCharacter->OnMovementFinished.AddDynamic(this, &AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack);
-                bIsMoving = true;
-                SelectedCharacter->StartStepByStepMovement(Path);
-            }
+            // === Avvia movimento ===
+            SelectedCharacter->OnMovementFinished.Clear();
+            SelectedCharacter->OnMovementFinished.AddDynamic(this, &AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack);
+            bIsMoving = true;
+            SelectedCharacter->StartStepByStepMovement(Path);
         }
     }
 }
+
 
 
 void AMyPlayerController::HighlightReachableCells(AGameCharacter* CharacterToHighlight)

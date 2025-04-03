@@ -64,9 +64,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Grid")
     ACell_Actor* GetCellAt(int32 Row, int32 Column) const;
-    // ⭐️ A* function nuova
+
     UFUNCTION(BlueprintCallable, Category = "Grid|Pathfinding")
-    TArray<ACell_Actor*> FindPathAStarIgnoringUnits(ACell_Actor* StartCell, ACell_Actor* TargetCell, const TArray<AGameCharacter*>& UnitsToIgnore);
+    TArray<ACell_Actor*> FindPathAStarAvoidingUnits(ACell_Actor* StartCell, ACell_Actor* TargetCell, const TArray<AGameCharacter*>& UnitsToIgnore);
 
     FVector GetStartLocation() const { return StartLocationSaved; }
     float GetCellStep() const { return CellSize + CellSpacing; }

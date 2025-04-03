@@ -75,7 +75,7 @@ void AMyAIController::RunTurn()
                     }
                 }
 
-                TArray<ACell_Actor*> Path = GridManager->FindPathAStarIgnoringUnits(StartCell, Cell, Ignore);
+                TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, Cell, Ignore);
                 if (Path.Num() > 1 && Path.Num() < MinLength)
                 {
                     MinLength = Path.Num();
@@ -95,7 +95,7 @@ void AMyAIController::RunTurn()
                         Ignore.Add(Unit);
                     }
                 }
-                LastPath = GridManager->FindPathAStarIgnoringUnits(StartCell, TargetCell, Ignore);
+                LastPath = GridManager->FindPathAStarAvoidingUnits(StartCell, TargetCell, Ignore);
             }
         }
         else
@@ -109,7 +109,7 @@ void AMyAIController::RunTurn()
                     Ignore.Add(Unit);
                 }
             }
-            LastPath = GridManager->FindPathAStarIgnoringUnits(StartCell, TargetCell, Ignore);
+            LastPath = GridManager->FindPathAStarAvoidingUnits(StartCell, TargetCell, Ignore);
         }
     }
 

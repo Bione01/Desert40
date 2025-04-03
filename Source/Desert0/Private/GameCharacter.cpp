@@ -57,29 +57,8 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange)
     DestinationCell->bIsOccupied = true;
     DestinationCell->OccupyingUnit = this;
 
-    // Aggiorna posizione visiva
-    AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
-    if (GridManager)
-    {
-        FVector StartLocation = GridManager->GetStartLocation();
-        float CellStep = GridManager->GetCellStep();
-
-        FVector TargetLocation = StartLocation + FVector(
-            DestinationCell->Column * CellStep,
-            DestinationCell->Row * CellStep,
-            UnitSpawnZOffset
-        );
-
-        SetActorLocation(TargetLocation);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: GridManager non trovato!"));
-    }
-
     UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), CurrentRow, CurrentColumn);
 }
-
 
 
 int32 AGameCharacter::GetAttackRange() const
@@ -149,7 +128,15 @@ void AGameCharacter::MoveOneStep()
     }
 
     ACell_Actor* NextCell = StepPath[0];
-    if (NextCell && !NextCell->bIsOccupied)
+    if (NextCell && NextCell->bIsOccupied)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Movimento bloccato: la prossima cella è occupata da %s."), *NextCell->OccupyingUnit->GetName());
+        GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
+        OnMovementFinished.Broadcast();
+        return;
+    }
+
+    if (NextCell)
     {
         AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
         if (!GridManager) return;
@@ -168,7 +155,6 @@ void AGameCharacter::MoveOneStep()
         MaxLerpTime = Distance / MovementSpeed;
         CurrentLerpTime = 0.f;
 
-        // Imposta il Timer per l'interpolazione
         GetWorld()->GetTimerManager().SetTimer(StepMovementTimer, this, &AGameCharacter::UpdateSmoothMovement, 0.01f, true);
     }
 }
@@ -213,7 +199,6 @@ void AGameCharacter::UpdateSmoothMovement()
     CurrentLerpTime += 0.01f;
     float Alpha = FMath::Clamp(CurrentLerpTime / MaxLerpTime, 0.f, 1.f);
     FVector NewLocation = FMath::Lerp(StartLocation, EndLocation, Alpha);
-    NewLocation.Z = UnitSpawnZOffset;
     SetActorLocation(NewLocation);
 }
 
