@@ -411,3 +411,81 @@ void AMyGameModebase::OnAIMovementFinished()
     CurrentAIIndex++;
     ExecuteNextAIUnit();
 }
+
+void AMyGameModebase::OnUnitKilled(AGameCharacter* DeadUnit)
+{
+    if (DeadUnit->bIsAIControlled)
+    {
+        AIUnits.Remove(DeadUnit);
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] Unità IA eliminata."));
+    }
+    else
+    {
+        PlayerUnits.Remove(DeadUnit);
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] Unità del giocatore eliminata."));
+
+        bool bAllPlayerUnitsActed = true;
+        for (AGameCharacter* Unit : PlayerUnits)
+        {
+            if (Unit && (!Unit->HasMovedThisTurn || !Unit->HasAttackedThisTurn))
+            {
+                bAllPlayerUnitsActed = false;
+                break;
+            }
+        }
+
+        if (bAllPlayerUnitsActed)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[GameMode] Tutte le unità Player hanno agito dopo la morte. Passo il turno."));
+            NotifyPlayerUnitMoved();
+        }
+    }
+
+    // Check fine partita
+    if (PlayerUnits.Num() == 0)
+    {
+        EndGame(false); // IA vince
+    }
+    else if (AIUnits.Num() == 0)
+    {
+        EndGame(true); // Player vince
+    }
+}
+
+void AMyGameModebase::EndGame(bool bPlayerWon)
+{
+    CurrentPhase = EGamePhase::GP_End;
+    UE_LOG(LogTemp, Warning, TEXT("=== PARTITA TERMINATA ==="));
+    if (bPlayerWon)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Hai vinto!"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Hai perso!"));
+    }
+
+    // Blocca input
+    AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+    if (PC)
+    {
+        PC->SetInputMode(FInputModeUIOnly());
+        PC->bShowMouseCursor = true;
+    }
+
+    // Blocca IA
+    for (AGameCharacter* Unit : AIUnits)
+    {
+        if (Unit)
+        {
+            AMyAIController* AIController = Cast<AMyAIController>(Unit->GetController());
+            if (AIController)
+            {
+                AIController->StopMovement();
+                AIController->SetActorTickEnabled(false);
+            }
+        }
+    }
+
+    // TODO: Se vuoi mostra un widget di vittoria/sconfitta qui
+}

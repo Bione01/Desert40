@@ -2,6 +2,8 @@
 #include "Grid_Manager.h"
 #include "Cell_Actor.h"
 #include "BrawlerCharacter.h"
+#include "SniperCharacter.h"
+#include "MyGameModebase.h"
 #include "Kismet/GameplayStatics.h"
 
 AGameCharacter::AGameCharacter()
@@ -27,36 +29,15 @@ void AGameCharacter::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 }
 
-void AGameCharacter::Attack(AGameCharacter* Target)
-{
-    if (!Target)
-    {
-        return;
-    }
-
-    // Calcola un danno casuale compreso tra DamageMin e DamageMax
-    int32 DamageDealt = FMath::RandRange(DamageMin, DamageMax);
-    Target->Health -= DamageDealt;
-
-    UE_LOG(LogTemp, Log, TEXT("%s ha attaccato %s infliggendo %d danni."), *GetName(), *Target->GetName(), DamageDealt);
-
-    // Se la salute del bersaglio scende a zero o sotto, logga che è stato sconfitto
-    if (Target->Health <= 0)
-    {
-        UE_LOG(LogTemp, Log, TEXT("%s è stato sconfitto."), *Target->GetName());
-        // Qui potresti aggiungere ulteriori logiche di rimozione o di gestione della sconfitta
-    }
-}
-
-void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell)
+void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange)
 {
     if (!DestinationCell)
     {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: DestinationCell is null"));
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: DestinationCell è null"));
         return;
     }
 
-    if (!CanReachCell(DestinationCell))
+    if (!bIgnoreRange && !CanReachCell(DestinationCell))
     {
         UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è fuori dal range di movimento"), DestinationCell->Row, DestinationCell->Column);
         return;
@@ -69,34 +50,37 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell)
         CurrentCell->OccupyingUnit = nullptr;
     }
 
-    // Aggiorna posizione
-    AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
-    if (!GridManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: GridManager non trovato!"));
-        return;
-    }
-
-    FVector StartLocation = GridManager->GetStartLocation();
-    float CellStep = GridManager->GetCellStep();
-
-    FVector TargetLocation = StartLocation + FVector(
-        DestinationCell->Column * CellStep,
-        DestinationCell->Row * CellStep,
-        UnitSpawnZOffset
-    );
-
-    SetActorLocation(TargetLocation);
-
-    // Aggiorna stato
+    // Aggiorna stato logico
+    CurrentCell = DestinationCell;
     CurrentRow = DestinationCell->Row;
     CurrentColumn = DestinationCell->Column;
     DestinationCell->bIsOccupied = true;
     DestinationCell->OccupyingUnit = this;
-    CurrentCell = DestinationCell;
 
-    UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
+    // Aggiorna posizione visiva
+    AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
+    if (GridManager)
+    {
+        FVector StartLocation = GridManager->GetStartLocation();
+        float CellStep = GridManager->GetCellStep();
+
+        FVector TargetLocation = StartLocation + FVector(
+            DestinationCell->Column * CellStep,
+            DestinationCell->Row * CellStep,
+            UnitSpawnZOffset
+        );
+
+        SetActorLocation(TargetLocation);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: GridManager non trovato!"));
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), CurrentRow, CurrentColumn);
 }
+
+
 
 int32 AGameCharacter::GetAttackRange() const
 {
@@ -123,6 +107,11 @@ void AGameCharacter::ResetTurnState()
 bool AGameCharacter::IsBrawler() const
 {
     return Cast<ABrawlerCharacter>(this) != nullptr;
+}
+
+bool AGameCharacter::IsSniper() const
+{
+    return Cast<ASniperCharacter>(this) != nullptr;
 }
 
 bool AGameCharacter::CanReachCell(const ACell_Actor* DestinationCell) const
@@ -154,7 +143,6 @@ void AGameCharacter::MoveOneStep()
 {
     if (StepPath.Num() == 0)
     {
-        // Fine movimento
         GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
         OnMovementFinished.Broadcast();
         return;
@@ -163,9 +151,112 @@ void AGameCharacter::MoveOneStep()
     ACell_Actor* NextCell = StepPath[0];
     if (NextCell && !NextCell->bIsOccupied)
     {
-        MoveToCell(NextCell);
+        AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
+        if (!GridManager) return;
+
+        FVector GridStart = GridManager->GetStartLocation();
+        float CellStep = GridManager->GetCellStep();
+
+        EndLocation = GridStart + FVector(
+            NextCell->Column * CellStep,
+            NextCell->Row * CellStep,
+            UnitSpawnZOffset
+        );
+
+        StartLocation = GetActorLocation();
+        float Distance = FVector::Dist(StartLocation, EndLocation);
+        MaxLerpTime = Distance / MovementSpeed;
+        CurrentLerpTime = 0.f;
+
+        // Imposta il Timer per l'interpolazione
+        GetWorld()->GetTimerManager().SetTimer(StepMovementTimer, this, &AGameCharacter::UpdateSmoothMovement, 0.01f, true);
+    }
+}
+
+void AGameCharacter::UpdateSmoothMovement()
+{
+    if (CurrentLerpTime >= MaxLerpTime)
+    {
+        // Fine interpolazione
+        FVector FinalLocation = EndLocation;
+        FinalLocation.Z = UnitSpawnZOffset; // Mantieni Z corretta
+        SetActorLocation(FinalLocation);
+
+        // Aggiorna logica SOLO a fine movimento
+        if (StepPath.Num() > 0)
+        {
+            ACell_Actor* NextCell = StepPath[0];
+
+            // Libera la cella precedente
+            if (CurrentCell)
+            {
+                CurrentCell->bIsOccupied = false;
+                CurrentCell->OccupyingUnit = nullptr;
+            }
+
+            // Aggiorna stato logico
+            CurrentCell = NextCell;
+            CurrentRow = NextCell->Row;
+            CurrentColumn = NextCell->Column;
+            NextCell->bIsOccupied = true;
+            NextCell->OccupyingUnit = this;
+        }
+
         StepPath.RemoveAt(0);
+        GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
+
+        // Prossimo step
+        MoveOneStep();
+        return;
     }
 
-    GetWorld()->GetTimerManager().SetTimer(StepMovementTimer, this, &AGameCharacter::MoveOneStep, 0.2f, false);
+    CurrentLerpTime += 0.01f;
+    float Alpha = FMath::Clamp(CurrentLerpTime / MaxLerpTime, 0.f, 1.f);
+    FVector NewLocation = FMath::Lerp(StartLocation, EndLocation, Alpha);
+    NewLocation.Z = UnitSpawnZOffset;
+    SetActorLocation(NewLocation);
+}
+
+
+
+void AGameCharacter::ReceiveDamage(int32 DamageAmount)
+{
+    Health -= DamageAmount;
+    UE_LOG(LogTemp, Warning, TEXT("%s ha subito %d danni. Salute residua: %d"), *GetName(), DamageAmount, Health);
+
+    if (Health <= 0)
+    {
+        Die();
+    }
+}
+
+void AGameCharacter::Die()
+{
+    UE_LOG(LogTemp, Warning, TEXT("%s è stato sconfitto!"), *GetName());
+
+    // Libera la cella
+    if (CurrentCell)
+    {
+        CurrentCell->bIsOccupied = false;
+        CurrentCell->OccupyingUnit = nullptr;
+    }
+
+    // Notifica GameMode
+    AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
+    if (MyGameMode)
+    {
+        MyGameMode->OnUnitKilled(this);
+    }
+
+    Destroy();
+}
+
+void AGameCharacter::Attack(AGameCharacter* Target)
+{
+    if (!Target) return;
+
+    int32 DamageDealt = FMath::RandRange(DamageMin, DamageMax);
+    UE_LOG(LogTemp, Log, TEXT("%s attacca %s infliggendo %d danni."), *GetName(), *Target->GetName(), DamageDealt);
+
+    Target->ReceiveDamage(DamageDealt);
 }

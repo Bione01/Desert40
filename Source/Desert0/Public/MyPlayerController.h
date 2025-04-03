@@ -13,43 +13,28 @@ UCLASS()
 class DESERT0_API AMyPlayerController : public APlayerController
 {
     GENERATED_BODY()
-    
+
 public:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
 
-    // Widget per la selezione dei personaggi
+    // === Widget ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UUserWidget> CharacterSelectionWidgetClass;
 
     UPROPERTY(BlueprintReadOnly, Category = "UI")
     UUserWidget* CharacterSelectionWidget;
 
-    // Classi dei personaggi da spawnare
+    // === Classi Personaggi ===
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Characters")
     TSubclassOf<AGameCharacter> SniperCharacterClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Characters")
     TSubclassOf<AGameCharacter> BrawlerCharacterClass;
 
-    // Tipo di personaggio selezionato
-    UPROPERTY(BlueprintReadWrite, Category = "Characters")
-    FName SelectedCharacterType;
-
-    // Posizione desiderata per il posizionamento
-    UPROPERTY(BlueprintReadWrite, Category = "Spawn")
-    FVector DesiredSpawnLocation;
-
-    // Personaggi spawnati
-    UPROPERTY(BlueprintReadOnly, Category = "Characters")
-    AGameCharacter* SpawnedSniper;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Characters")
-    AGameCharacter* SpawnedBrawler;
-
-    // Stato di piazzamento
+    // === Stato piazzamento ===
     UPROPERTY(BlueprintReadWrite, Category = "Placement")
-    int32 PlacementCount;
+    int32 PlacementCount = 0;
 
     UPROPERTY(BlueprintReadWrite)
     bool bIsSniperPlaced = false;
@@ -57,21 +42,40 @@ public:
     UPROPERTY(BlueprintReadWrite)
     bool bIsBrawlerPlaced = false;
 
-    // Riferimento al Grid Manager
+    UPROPERTY(BlueprintReadWrite, Category = "Characters")
+    FName SelectedCharacterType;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Spawn")
+    FVector DesiredSpawnLocation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Characters")
+    AGameCharacter* SpawnedSniper;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Characters")
+    AGameCharacter* SpawnedBrawler;
+
+    // === Grid ===
     UPROPERTY(BlueprintReadWrite, Category = "Grid")
     AGrid_Manager* GridManager;
 
-    // Valori usati per il calcolo del movimento
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     float CellSize = 100.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     float MovementRange = 2.f;
-    
+
+    // === Input & Selezione ===
     UPROPERTY()
     bool bIsMoving = false;
 
-    // Funzioni accessibili dai Blueprint
+    UPROPERTY()
+    AGameCharacter* SelectedCharacter = nullptr;
+    
+    // Stato per sapere se dobbiamo attendere un attacco dopo il movimento
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn State")
+    bool bIsWaitingForAttack = false;
+
+    // === Funzioni ===
     UFUNCTION(BlueprintCallable, Category = "Character Selection")
     void OnCharacterSelected(FName CharacterType);
 
@@ -79,20 +83,35 @@ public:
     AGameCharacter* GetClickedUnit();
 
     UFUNCTION(BlueprintCallable, Category = "Grid")
-    void HighlightReachableCells(AGameCharacter* SelectedCharacter);
+    void HighlightReachableCells(AGameCharacter* CharacterToHighlight);
 
     UFUNCTION(BlueprintCallable, Category = "Grid")
     void ClearHighlights();
-    
+
+    UFUNCTION(BlueprintCallable, Category = "Grid")
+    void RefreshCellOccupancy();
+
     UFUNCTION()
     void OnPlayerMovementFinished();
+    
+    UFUNCTION()
+    void OnPlayerMovementFinishedAndCheckAttack();
+
+    UFUNCTION()
+    void CheckEndOfPlayerUnitTurn();
+
+    UFUNCTION()
+    void DeselectCurrentUnit();
+    
+    UFUNCTION()
+    void HandlePlacementClick(class AMyGameModebase* MyGameMode);
+
+    void SetGameInputMode(bool bGameOnly);
 
 protected:
     void HandleLeftMouseClick();
     ACell_Actor* GetClickedCell();
-    void SetGameInputMode();
     void ShowCharacterSelectionWidget();
 
-    // Offset per lo Z spostamento dell'unità (se serve)
     float ZOffset = 5.f;
 };

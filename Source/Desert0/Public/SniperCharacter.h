@@ -14,5 +14,5 @@ class DESERT0_API ASniperCharacter : public AGameCharacter
 public:
     ASniperCharacter();
 
-    virtual void MoveToCell(ACell_Actor* DestinationCell) override;
+    virtual void MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange = false) override;
 };

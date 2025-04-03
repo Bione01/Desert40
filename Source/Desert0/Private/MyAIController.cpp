@@ -1,5 +1,7 @@
 #include "MyAIController.h"
 #include "GameCharacter.h"
+#include "SniperCharacter.h"
+#include "BrawlerCharacter.h"
 #include "Grid_Manager.h"
 #include "Cell_Actor.h"
 #include "MyGameModebase.h"
@@ -9,10 +11,9 @@ void AMyAIController::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Inizializzazione delle variabili
     GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(GetWorld()));
     GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
-    LastTarget = nullptr;  // Inizializza LastTarget come nullptr
+    LastTarget = nullptr;
 
     ClearCurrentPath();
 }
@@ -27,14 +28,14 @@ void AMyAIController::RunTurn()
 
     if (MyCharacter->HasMovedThisTurn && MyCharacter->HasAttackedThisTurn)
     {
-        MyCharacter->OnMovementFinished.Broadcast();
+        GameMode->NotifyAIUnitMoved();
         return;
     }
 
     AGameCharacter* Closest = FindClosestEnemy();
     if (!Closest)
     {
-        MyCharacter->OnMovementFinished.Broadcast();
+        GameMode->NotifyAIUnitMoved();
         return;
     }
 
@@ -112,22 +113,49 @@ void AMyAIController::RunTurn()
         }
     }
 
-    float Distance = FVector::Dist(MyCharacter->GetActorLocation(), Closest->GetActorLocation());
-    if (Distance <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
+    // === Se è già in range d'attacco all'inizio
+    int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - Closest->CurrentRow);
+    int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Closest->CurrentColumn);
+    if (RowDiff + ColDiff <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
     {
         MyCharacter->Attack(Closest);
         MyCharacter->HasAttackedThisTurn = true;
-        MyCharacter->OnMovementFinished.Broadcast(); // Comunica al GameMode che ha finito
+        GameMode->NotifyAIUnitMoved();
         return;
-
     }
 
+    // === Movimento
     if (!MyCharacter->HasMovedThisTurn && LastPath.Num() > 1)
     {
         int32 MaxSteps = MyCharacter->GetMaxMovement();
         int32 StepsToMove = FMath::Min(MaxSteps, LastPath.Num() - 1);
 
         ACell_Actor* DestinationCell = nullptr;
+
+        if (MyCharacter->IsSniper())
+        {
+            for (int32 i = 1; i <= StepsToMove; ++i)
+            {
+                ACell_Actor* StepCell = LastPath[i];
+                int32 DistanceToTarget = FMath::Abs(StepCell->Row - Closest->CurrentRow) + FMath::Abs(StepCell->Column - Closest->CurrentColumn);
+
+                if (DistanceToTarget <= MyCharacter->GetAttackRange())
+                {
+                    TArray<ACell_Actor*> SubPath;
+                    for (int32 j = 0; j <= i; ++j)
+                    {
+                        SubPath.Add(LastPath[j]);
+                    }
+
+                    MyCharacter->OnMovementFinished.Clear();
+                    MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+                    MyCharacter->StartStepByStepMovement(SubPath);
+                    MyCharacter->HasMovedThisTurn = true;
+                    LastPath.RemoveAt(0, i);
+                    return;
+                }
+            }
+        }
 
         for (int32 i = 1; i <= StepsToMove; ++i)
         {
@@ -159,7 +187,6 @@ void AMyAIController::RunTurn()
                 MyCharacter->HasMovedThisTurn = true;
                 LastPath.RemoveAt(0, Index);
                 return;
-
             }
         }
         else
@@ -167,75 +194,32 @@ void AMyAIController::RunTurn()
             LastPath.Empty();
         }
     }
-}
 
-void AMyAIController::UpdateTarget(AGameCharacter* NewTarget)
-{
-    // Aggiorna LastTarget ogni volta che il target cambia
-    LastTarget = NewTarget;
-}
-AGameCharacter* AMyAIController::FindClosestEnemy()
-{
-    UE_LOG(LogTemp, Warning, TEXT("[IA] Sto cercando nemici..."));
-
-    TArray<AActor*> FoundActors;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundActors);
-
-    UE_LOG(LogTemp, Warning, TEXT("[IA] Ho trovato %d attori di tipo AGameCharacter."), FoundActors.Num());
-
-    AGameCharacter* MyCharacter = GetControlledCharacter();
-    if (!MyCharacter)
+    // === Se non può muoversi e non ha attaccato
+    if (!MyCharacter->HasMovedThisTurn && LastPath.Num() <= 1 && !MyCharacter->HasAttackedThisTurn)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[IA] MyCharacter è NULL."));
-        return nullptr;
-    }
+        RowDiff = FMath::Abs(MyCharacter->CurrentRow - Closest->CurrentRow);
+        ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Closest->CurrentColumn);
 
-    AGameCharacter* ClosestEnemy = nullptr;
-    float MinDistance = FLT_MAX;
-
-    for (AActor* Actor : FoundActors)
-    {
-        AGameCharacter* GameChar = Cast<AGameCharacter>(Actor);
-        if (GameChar && !GameChar->bIsAIControlled)
+        if (RowDiff + ColDiff <= MyCharacter->GetAttackRange())
         {
-            UE_LOG(LogTemp, Warning, TEXT("[IA] Trovato: %s, bIsAIControlled = %s"),
-                *GameChar->GetName(),
-                GameChar->bIsAIControlled ? TEXT("true") : TEXT("false"));
-
-            float Dist = FVector::Dist(MyCharacter->GetActorLocation(), GameChar->GetActorLocation());
-            if (Dist < MinDistance)
-            {
-                MinDistance = Dist;
-                ClosestEnemy = GameChar;
-            }
+            MyCharacter->Attack(Closest);
+            MyCharacter->HasAttackedThisTurn = true;
         }
     }
 
-    if (ClosestEnemy)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[IA] Nemico più vicino: %s"), *ClosestEnemy->GetName());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[IA] Nessun nemico trovato."));
-    }
+    GameMode->NotifyAIUnitMoved();
+}
 
-    return ClosestEnemy;
-}
-void AMyAIController::ClearCurrentPath()
-{
-    CurrentPath.Empty();
-    CurrentTarget = nullptr;
-    UE_LOG(LogTemp, Warning, TEXT("[IA] Path e target sono stati azzerati."));
-}
-AGameCharacter* AMyAIController::GetControlledCharacter() const
-{
-    return Cast<AGameCharacter>(GetPawn());
-}
+
 void AMyAIController::OnCharacterMovementFinished()
 {
     AGameCharacter* MyCharacter = GetControlledCharacter();
     if (!MyCharacter || !GameMode) return;
+
+    // Aggiorna la posizione logica SEMPRE
+    MyCharacter->CurrentRow = MyCharacter->CurrentCell->Row;
+    MyCharacter->CurrentColumn = MyCharacter->CurrentCell->Column;
 
     AGameCharacter* Closest = FindClosestEnemy();
     if (Closest)
@@ -248,6 +232,50 @@ void AMyAIController::OnCharacterMovementFinished()
         }
     }
 
-    // 🔥 Non fare più il Broadcast qui! Chiama direttamente il GameMode
     GameMode->NotifyAIUnitMoved();
+}
+
+AGameCharacter* AMyAIController::FindClosestEnemy()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[IA] Sto cercando nemici..."));
+
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundActors);
+
+    AGameCharacter* MyCharacter = GetControlledCharacter();
+    if (!MyCharacter)
+    {
+        return nullptr;
+    }
+
+    AGameCharacter* ClosestEnemy = nullptr;
+    float MinDistance = FLT_MAX;
+
+    for (AActor* Actor : FoundActors)
+    {
+        AGameCharacter* GameChar = Cast<AGameCharacter>(Actor);
+        if (GameChar && !GameChar->bIsAIControlled)
+        {
+            float Dist = FVector::Dist(MyCharacter->GetActorLocation(), GameChar->GetActorLocation());
+            if (Dist < MinDistance)
+            {
+                MinDistance = Dist;
+                ClosestEnemy = GameChar;
+            }
+        }
+    }
+
+    return ClosestEnemy;
+}
+
+void AMyAIController::ClearCurrentPath()
+{
+    CurrentPath.Empty();
+    CurrentTarget = nullptr;
+    UE_LOG(LogTemp, Warning, TEXT("[IA] Path e target sono stati azzerati."));
+}
+
+AGameCharacter* AMyAIController::GetControlledCharacter() const
+{
+    return Cast<AGameCharacter>(GetPawn());
 }

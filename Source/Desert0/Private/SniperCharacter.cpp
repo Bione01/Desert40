@@ -16,7 +16,7 @@ ASniperCharacter::ASniperCharacter()
     CurrentCell = nullptr;
 }
 
-void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell)
+void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange /* = false */)
 {
     if (!DestinationCell)
     {
@@ -30,7 +30,7 @@ void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell)
         return;
     }
 
-    if (CurrentCell)
+    if (CurrentCell && !bIgnoreRange) // ⚠️ rispetta l'argomento
     {
         int32 DeltaRow = FMath::Abs(DestinationCell->Row - CurrentCell->Row);
         int32 DeltaCol = FMath::Abs(DestinationCell->Column - CurrentCell->Column);

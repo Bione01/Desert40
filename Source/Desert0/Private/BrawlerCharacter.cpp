@@ -16,7 +16,7 @@ ABrawlerCharacter::ABrawlerCharacter()
     CurrentCell = nullptr;
 }
 
-void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell)
+void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange /* puoi anche ignorarlo se non ti serve */)
 {
     if (!DestinationCell)
     {
@@ -30,7 +30,7 @@ void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell)
         return;
     }
 
-    if (CurrentCell)
+    if (CurrentCell && !bIgnoreRange) // solo se bIgnoreRange == false controlli la distanza
     {
         int32 DeltaRow = FMath::Abs(DestinationCell->Row - CurrentCell->Row);
         int32 DeltaCol = FMath::Abs(DestinationCell->Column - CurrentCell->Column);

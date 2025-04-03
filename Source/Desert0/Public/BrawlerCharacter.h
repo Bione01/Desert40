@@ -14,6 +14,7 @@ class DESERT0_API ABrawlerCharacter : public AGameCharacter
 public:
     ABrawlerCharacter();
 
-    virtual void MoveToCell(ACell_Actor* DestinationCell) override;
+    virtual void MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange = false) override;
+
 };
 

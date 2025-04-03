@@ -10,7 +10,8 @@ UENUM(BlueprintType)
 enum class EGamePhase : uint8
 {
     GP_Placement UMETA(DisplayName = "Fase di Posizionamento"),
-    GP_Battle UMETA(DisplayName = "Fase di Battaglia")
+    GP_Battle UMETA(DisplayName = "Fase di Battaglia"),
+    GP_End       UMETA(DisplayName = "End") 
 };
 
 UCLASS()
@@ -101,7 +102,10 @@ public:
     UFUNCTION()
     void OnAIMovementFinished();
 
-
+    void OnUnitKilled(AGameCharacter* DeadUnit);
+    
+    UFUNCTION()
+    void EndGame(bool bPlayerWon);
 
 protected:
 

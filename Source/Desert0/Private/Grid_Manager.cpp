@@ -65,7 +65,7 @@ void AGrid_Manager::CreateGrid()
             FRotator SpawnRotation = FRotator::ZeroRotator;
             FActorSpawnParameters SpawnParams;
 
-            bool bIsObstacle = FMath::RandRange(0, 100) < 0;
+            bool bIsObstacle = FMath::RandRange(0, 100) < 10;
 
             if (bIsObstacle)
             {
