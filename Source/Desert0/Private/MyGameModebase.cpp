@@ -305,7 +305,9 @@ void AMyGameModebase::StartEnemyTurn()
 void AMyGameModebase::NotifyPlayerUnitMoved()
 {
     PlayerUnitsMoved++;
-    if (PlayerUnitsMoved >= MaxUnitsPerSide)
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] PlayerUnitsMoved: %d / Unità rimaste: %d"), PlayerUnitsMoved, PlayerUnits.Num());
+
+    if (PlayerUnitsMoved >= PlayerUnits.Num()) // NON MaxUnitsPerSide!
     {
         EndTurn();
     }
@@ -366,6 +368,21 @@ void AMyGameModebase::EndTurn()
 {
     if (CurrentPhase != EGamePhase::GP_Battle) return;
 
+    // ✅ Check se partita è finita prima di passare il turno
+    if (PlayerUnits.Num() == 0)
+    {
+        EndGame(false); // IA vince
+        return;
+    }
+    if (AIUnits.Num() == 0)
+    {
+        EndGame(true); // Player vince
+        return;
+    }
+
+    // Log di debug
+    UE_LOG(LogTemp, Error, TEXT("********** END TURN **********"));
+
     if (CurrentTurn == ETurnState::TS_PlayerTurn)
     {
         UE_LOG(LogTemp, Log, TEXT("Turno del Player finito. Inizio turno IA."));
@@ -377,6 +394,7 @@ void AMyGameModebase::EndTurn()
         StartPlayerTurn();
     }
 }
+
 
 void AMyGameModebase::StartTurn()
 {
@@ -428,34 +446,44 @@ void AMyGameModebase::OnUnitKilled(AGameCharacter* DeadUnit)
     }
     else
     {
+        bool bHadAlreadyMoved = DeadUnit->HasMovedThisTurn;
         PlayerUnits.Remove(DeadUnit);
         UE_LOG(LogTemp, Warning, TEXT("[GameMode] Unità del giocatore eliminata."));
 
-        bool bAllPlayerUnitsActed = true;
+        if (!bHadAlreadyMoved)
+        {
+            PlayerUnitsMoved++;
+        }
+
+        // ✅ Se tutte le unità Player sono morte → fine partita
+        if (PlayerUnits.Num() == 0)
+        {
+            EndGame(false);
+            return;
+        }
+
+        // ✅ Se l'unica unità rimasta ha già mosso e attaccato → passo il turno
+        bool bAllActed = true;
         for (AGameCharacter* Unit : PlayerUnits)
         {
             if (Unit && (!Unit->HasMovedThisTurn || !Unit->HasAttackedThisTurn))
             {
-                bAllPlayerUnitsActed = false;
+                bAllActed = false;
                 break;
             }
         }
 
-        if (bAllPlayerUnitsActed)
+        if (bAllActed)
         {
-            UE_LOG(LogTemp, Log, TEXT("[GameMode] Tutte le unità Player hanno agito dopo la morte. Passo il turno."));
-            NotifyPlayerUnitMoved();
+            UE_LOG(LogTemp, Log, TEXT("[GameMode] Dopo la morte, tutte le PlayerUnit hanno agito. Passo il turno."));
+            EndTurn();
         }
     }
 
-    // Check fine partita
-    if (PlayerUnits.Num() == 0)
+    // ✅ Controllo fine partita per IA
+    if (AIUnits.Num() == 0)
     {
-        EndGame(false); // IA vince
-    }
-    else if (AIUnits.Num() == 0)
-    {
-        EndGame(true); // Player vince
+        EndGame(true);
     }
 }
 

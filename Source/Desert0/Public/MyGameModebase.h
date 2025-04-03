@@ -11,7 +11,7 @@ enum class EGamePhase : uint8
 {
     GP_Placement UMETA(DisplayName = "Fase di Posizionamento"),
     GP_Battle UMETA(DisplayName = "Fase di Battaglia"),
-    GP_End       UMETA(DisplayName = "End") 
+    GP_End       UMETA(DisplayName = "End")
 };
 
 UCLASS()

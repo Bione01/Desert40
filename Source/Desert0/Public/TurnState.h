@@ -8,4 +8,5 @@ enum class ETurnState : uint8
 {
     TS_PlayerTurn UMETA(DisplayName = "Turno Giocatore"),
     TS_EnemyTurn  UMETA(DisplayName = "Turno Nemico")
+    
 };

@@ -519,6 +519,7 @@ void AMyPlayerController::CheckEndOfPlayerUnitTurn()
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
 
+    // Se l'unità ha mosso e attaccato, il turno è finito
     if (SelectedCharacter->HasMovedThisTurn && SelectedCharacter->HasAttackedThisTurn)
     {
         MyGameMode->NotifyPlayerUnitMoved();
@@ -526,22 +527,25 @@ void AMyPlayerController::CheckEndOfPlayerUnitTurn()
         return;
     }
 
+    // Se l'unità non ha ancora mosso
     if (!SelectedCharacter->HasMovedThisTurn)
     {
         // Può ancora muoversi
         return;
     }
 
+    // Se l'unità non ha attaccato
     if (!SelectedCharacter->HasAttackedThisTurn)
     {
         // Dopo il movimento, se non ha attaccato ed è in range, aspettiamo click → già gestito in HandleClick
         if (!bIsWaitingForAttack)
         {
-            MyGameMode->NotifyPlayerUnitMoved();
+            MyGameMode->NotifyPlayerUnitMoved(); // Passa il turno all'IA
             DeselectCurrentUnit();
         }
     }
 }
+
 void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
 {
     bIsMoving = false;
