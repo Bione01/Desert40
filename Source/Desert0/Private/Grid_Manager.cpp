@@ -27,24 +27,20 @@ void AGrid_Manager::Tick(float DeltaTime)
 
 void AGrid_Manager::CreateGrid()
 {
-    if (!CellActorClass)
+    if (!CellActorClass || !ObstacleBlueprint)
     {
-        UE_LOG(LogTemp, Warning, TEXT("CellActorClass non è impostata in Grid_Manager!"));
-        return;
-    }
-
-    if (!ObstacleBlueprint)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ObstacleBlueprint non è impostata in Grid_Manager!"));
+        UE_LOG(LogTemp, Warning, TEXT("CellActorClass o ObstacleBlueprint non impostato!"));
         return;
     }
 
     UWorld* World = GetWorld();
-    if (!World)
-    {
-        return;
-    }
+    if (!World) return;
 
+    // Pulizia precedente
+    for (ACell_Actor* Cell : GridCells)
+    {
+        if (Cell) Cell->Destroy();
+    }
     GridCells.Empty();
 
     FVector Origin = GetActorLocation();
@@ -53,48 +49,60 @@ void AGrid_Manager::CreateGrid()
     FVector StartLocation = Origin - FVector(GridWidth / 2, GridHeight / 2, 0.f);
     StartLocationSaved = StartLocation;
 
-    for (int32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
+    // === Loop finché trovi una configurazione senza isole ===
+    bool bGridIsValid = false;
+    while (!bGridIsValid)
     {
-        for (int32 ColIndex = 0; ColIndex < NumColumns; ++ColIndex)
+        TArray<TArray<int32>> GridArray;
+        GridArray.SetNum(NumRows);
+
+        for (int32 Row = 0; Row < NumRows; ++Row)
         {
-            FVector CellLocation = StartLocation + FVector(
-                ColIndex * (CellSize + CellSpacing),
-                RowIndex * (CellSize + CellSpacing),
-                0.f);
-
-            FRotator SpawnRotation = FRotator::ZeroRotator;
-            FActorSpawnParameters SpawnParams;
-
-            bool bIsObstacle = FMath::RandRange(0, 100) < 10;
-
-            if (bIsObstacle)
+            GridArray[Row].SetNum(NumColumns);
+            for (int32 Col = 0; Col < NumColumns; ++Col)
             {
-                AActor* NewObstacle = World->SpawnActor<AActor>(ObstacleBlueprint, CellLocation, SpawnRotation, SpawnParams);
-                if (NewObstacle)
-                {
-                    UE_LOG(LogTemp, Log, TEXT("Ostacolo generato a %s"), *CellLocation.ToString());
-                }
+                GridArray[Row][Col] = (FMath::RandRange(0, 100) < 10) ? 1 : 0;
             }
-            else
+        }
+
+        // Verifica se la griglia è valida (nessuna cella isolata)
+        bGridIsValid = !HasIsolatedCells(GridArray);
+        if (bGridIsValid)
+        {
+            for (int32 Row = 0; Row < NumRows; ++Row)
             {
-                ACell_Actor* NewCell = World->SpawnActor<ACell_Actor>(CellActorClass, CellLocation, SpawnRotation, SpawnParams);
-                if (NewCell)
+                for (int32 Col = 0; Col < NumColumns; ++Col)
                 {
-                    NewCell->Row = RowIndex;
-                    NewCell->Column = ColIndex;
-                    GridCells.Add(NewCell);
+                    FVector CellLocation = StartLocation + FVector(
+                        Col * (CellSize + CellSpacing),
+                        Row * (CellSize + CellSpacing),
+                        0.f);
+
+                    FRotator SpawnRotation = FRotator::ZeroRotator;
+                    FActorSpawnParameters SpawnParams;
+
+                    if (GridArray[Row][Col] == 1)
+                    {
+                        World->SpawnActor<AActor>(ObstacleBlueprint, CellLocation, SpawnRotation, SpawnParams);
+                    }
+                    else
+                    {
+                        ACell_Actor* NewCell = World->SpawnActor<ACell_Actor>(CellActorClass, CellLocation, SpawnRotation, SpawnParams);
+                        if (NewCell)
+                        {
+                            NewCell->Row = Row;
+                            NewCell->Column = Col;
+                            GridCells.Add(NewCell);
+                        }
+                    }
                 }
             }
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("Griglia generata con %d celle e ostacoli casuali."), GridCells.Num());
+    UE_LOG(LogTemp, Warning, TEXT("Griglia generata senza celle isolate."));
 }
 
-TArray<ACell_Actor*> AGrid_Manager::GetAllCells() const
-{
-    return GridCells;
-}
 ACell_Actor* AGrid_Manager::GetCellAt(int32 Row, int32 Column) const
 {
     for (ACell_Actor* Cell : GridCells)
@@ -106,6 +114,12 @@ ACell_Actor* AGrid_Manager::GetCellAt(int32 Row, int32 Column) const
     }
     return nullptr;
 }
+
+TArray<ACell_Actor*> AGrid_Manager::GetAllCells() const
+{
+    return GridCells;
+}
+
 TArray<ACell_Actor*> AGrid_Manager::FindPathAStarAvoidingUnits(ACell_Actor* StartCell, ACell_Actor* TargetCell, const TArray<AGameCharacter*>& UnitsToIgnore)
 {
     TArray<FCellNode> Nodes;
@@ -217,4 +231,37 @@ TArray<ACell_Actor*> AGrid_Manager::FindPathAStarAvoidingUnits(ACell_Actor* Star
     }
 
     return Path;
+}
+bool AGrid_Manager::HasIsolatedCells(const TArray<TArray<int32>>& GridArray) const
+{
+    for (int32 Row = 0; Row < NumRows; ++Row)
+    {
+        for (int32 Col = 0; Col < NumColumns; ++Col)
+        {
+            if (GridArray[Row][Col] == 0)
+            {
+                bool bHasFreeNeighbor = false;
+                TArray<FIntPoint> Offsets = { {1,0}, {-1,0}, {0,1}, {0,-1} };
+                for (FIntPoint Offset : Offsets)
+                {
+                    int32 NewRow = Row + Offset.X;
+                    int32 NewCol = Col + Offset.Y;
+                    if (NewRow >= 0 && NewRow < NumRows && NewCol >= 0 && NewCol < NumColumns)
+                    {
+                        if (GridArray[NewRow][NewCol] == 0)
+                        {
+                            bHasFreeNeighbor = true;
+                            break;
+                        }
+                    }
+                }
+                if (!bHasFreeNeighbor)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Cella isolata trovata: (%d, %d)"), Row, Col);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }

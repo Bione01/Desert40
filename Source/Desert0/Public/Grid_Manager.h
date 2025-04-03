@@ -34,6 +34,8 @@ protected:
 
 public:
     virtual void Tick(float DeltaTime) override;
+    
+    bool HasIsolatedCells(const TArray<TArray<int32>>& GridArray) const;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     int32 NumRows;
