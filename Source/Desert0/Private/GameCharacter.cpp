@@ -1,6 +1,7 @@
 #include "GameCharacter.h"
 #include "Grid_Manager.h"
 #include "Cell_Actor.h"
+#include "MyGameModebase.h"
 #include "BrawlerCharacter.h"
 #include "SniperCharacter.h"
 #include "MyGameModebase.h"
@@ -141,14 +142,10 @@ void AGameCharacter::MoveOneStep()
         AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
         if (!GridManager) return;
 
-        FVector GridStart = GridManager->GetStartLocation();
-        float CellStep = GridManager->GetCellStep();
+        AMyGameModebase* GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(GetWorld()));
+        if (!GameMode) return;
 
-        EndLocation = GridStart + FVector(
-            NextCell->Column * CellStep,
-            NextCell->Row * CellStep,
-            UnitSpawnZOffset
-        );
+        EndLocation = GameMode->GetCellLocationWithOffset(NextCell);
 
         StartLocation = GetActorLocation();
         float Distance = FVector::Dist(StartLocation, EndLocation);

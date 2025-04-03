@@ -1,5 +1,6 @@
 #include "BrawlerCharacter.h"
 #include "Cell_Actor.h"
+#include "MyGameModebase.h"
 #include "Grid_Manager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -48,20 +49,17 @@ void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRan
     AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
     if (GridManager)
     {
-        FVector StartLocation = GridManager->GetStartLocation();
-        float CellStep = GridManager->GetCellStep();
-
-        FVector TargetLocation = StartLocation + FVector(
-            DestinationCell->Column * CellStep,
-            DestinationCell->Row * CellStep,
-            0.f
-        );
-
-        SetActorLocation(TargetLocation);
+        AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(GetWorld()));
+        if (MyGameMode)
+        {
+            FVector TargetLocation = MyGameMode->GetCellLocationWithOffset(DestinationCell);
+            SetActorLocation(TargetLocation);
+        }
     }
 
     CurrentCell = DestinationCell;
     DestinationCell->bIsOccupied = true;
-
+    DestinationCell->OccupyingUnit = this;
+    
     UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
 }

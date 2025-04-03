@@ -45,6 +45,9 @@ private:
     
     UFUNCTION()
     void OnCharacterMovementFinished();
+    
+    UFUNCTION()
+    void TryToEscapeAndAttack(AGameCharacter* Threat);
 
     AGameCharacter* GetControlledCharacter() const;
 };

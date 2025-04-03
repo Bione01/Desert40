@@ -23,6 +23,8 @@ public:
     AMyGameModebase();
 
     virtual void BeginPlay() override;
+    
+    FVector GetCellLocationWithOffset(ACell_Actor* Cell) const;
 
     // === FASI DI GIOCO ===
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Phase")

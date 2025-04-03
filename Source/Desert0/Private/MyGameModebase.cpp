@@ -49,6 +49,22 @@ void AMyGameModebase::BeginPlay()
     }
 }
 
+FVector AMyGameModebase::GetCellLocationWithOffset(ACell_Actor* Cell) const
+{
+    if (!Cell || !GridManager) return FVector::ZeroVector;
+
+    FVector StartLocation = GridManager->GetStartLocation();
+    float CellStep = GridManager->GetCellStep();
+
+    FVector Location = StartLocation + FVector(
+        Cell->Column * CellStep,
+        Cell->Row * CellStep,
+        UnitSpawnZOffset
+    );
+
+    return Location;
+}
+
 void AMyGameModebase::NotifyPlayerUnitPlaced()
 {
     PlayerUnitsPlaced++;
@@ -143,8 +159,7 @@ void AMyGameModebase::PlaceAIUnit()
 
     int32 RandomIndex = FMath::RandRange(0, FreeCells.Num() - 1);
     ACell_Actor* DestinationCell = FreeCells[RandomIndex];
-    FVector SpawnLocation = DestinationCell->GetActorLocation();
-    SpawnLocation.Z = UnitSpawnZOffset;
+    FVector SpawnLocation = GetCellLocationWithOffset(DestinationCell);
 
     FRotator SpawnRotation = FRotator::ZeroRotator;
     FActorSpawnParameters SpawnParams;
@@ -159,6 +174,8 @@ void AMyGameModebase::PlaceAIUnit()
             AIController->Possess(SpawnedAIUnit);
         }
 
+        FVector CorrectLocation = GetCellLocationWithOffset(DestinationCell);
+        SpawnedAIUnit->SetActorLocation(CorrectLocation);
         SpawnedAIUnit->bIsAIControlled = true;
         SpawnedAIUnit->MoveToCell(DestinationCell);
         SpawnedAIUnit->CurrentRow = DestinationCell->Row;

@@ -1,8 +1,10 @@
 #include "SniperCharacter.h"
+#include "MyGameModebase.h"
 #include "Cell_Actor.h"
 #include "Grid_Manager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "MyGameModebase.h"
 
 ASniperCharacter::ASniperCharacter()
 {
@@ -16,7 +18,7 @@ ASniperCharacter::ASniperCharacter()
     CurrentCell = nullptr;
 }
 
-void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange /* = false */)
+void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange)
 {
     if (!DestinationCell)
     {
@@ -30,7 +32,7 @@ void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRang
         return;
     }
 
-    if (CurrentCell && !bIgnoreRange) // ⚠️ rispetta l'argomento
+    if (CurrentCell && !bIgnoreRange)
     {
         int32 DeltaRow = FMath::Abs(DestinationCell->Row - CurrentCell->Row);
         int32 DeltaCol = FMath::Abs(DestinationCell->Column - CurrentCell->Column);
@@ -43,25 +45,19 @@ void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRang
         }
 
         CurrentCell->bIsOccupied = false;
+        CurrentCell->OccupyingUnit = nullptr;
     }
 
-    AGrid_Manager* GridManager = Cast<AGrid_Manager>(UGameplayStatics::GetActorOfClass(GetWorld(), AGrid_Manager::StaticClass()));
-    if (GridManager)
+    AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(GetWorld()));
+    if (MyGameMode)
     {
-        FVector StartLocation = GridManager->GetStartLocation();
-        float CellStep = GridManager->GetCellStep();
-
-        FVector TargetLocation = StartLocation + FVector(
-            DestinationCell->Column * CellStep,
-            DestinationCell->Row * CellStep,
-            0.f
-        );
-
+        FVector TargetLocation = MyGameMode->GetCellLocationWithOffset(DestinationCell);
         SetActorLocation(TargetLocation);
     }
 
     CurrentCell = DestinationCell;
     DestinationCell->bIsOccupied = true;
+    DestinationCell->OccupyingUnit = this;
 
     UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
 }

@@ -38,7 +38,17 @@ void AMyAIController::RunTurn()
         GameMode->NotifyAIUnitMoved();
         return;
     }
+    if (MyCharacter->IsSniper() && Closest->IsBrawler())
+    {
+        int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - Closest->CurrentRow);
+        int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Closest->CurrentColumn);
 
+        if (RowDiff + ColDiff < 8 && !MyCharacter->HasMovedThisTurn)
+        {
+            TryToEscapeAndAttack(Closest);
+            return;
+        }
+    }
     bool bTargetChanged = (Closest != LastTarget);
 
     if (bTargetChanged || LastPath.Num() <= 1)
@@ -221,13 +231,17 @@ void AMyAIController::OnCharacterMovementFinished()
     MyCharacter->CurrentRow = MyCharacter->CurrentCell->Row;
     MyCharacter->CurrentColumn = MyCharacter->CurrentCell->Column;
 
-    AGameCharacter* Closest = FindClosestEnemy();
-    if (Closest)
+    // Riallinea posizione fisica
+    FVector FixedLocation = GameMode->GetCellLocationWithOffset(MyCharacter->CurrentCell);
+    MyCharacter->SetActorLocation(FixedLocation);
+
+    // === Attacco dopo fuga ===
+    if (MyCharacter->IsSniper() && LastTarget && !MyCharacter->HasAttackedThisTurn)
     {
-        float Distance = FVector::Dist(MyCharacter->GetActorLocation(), Closest->GetActorLocation());
-        if (Distance <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
+        float Distance = FVector::Dist(MyCharacter->GetActorLocation(), LastTarget->GetActorLocation());
+        if (Distance <= MyCharacter->GetAttackRange())
         {
-            MyCharacter->Attack(Closest);
+            MyCharacter->Attack(LastTarget);
             MyCharacter->HasAttackedThisTurn = true;
         }
     }
@@ -278,4 +292,62 @@ void AMyAIController::ClearCurrentPath()
 AGameCharacter* AMyAIController::GetControlledCharacter() const
 {
     return Cast<AGameCharacter>(GetPawn());
+}
+
+void AMyAIController::TryToEscapeAndAttack(AGameCharacter* Threat)
+{
+    AGameCharacter* MyCharacter = GetControlledCharacter();
+    if (!MyCharacter || !Threat) return;
+
+    ACell_Actor* StartCell = GridManager->GetCellAt(MyCharacter->CurrentRow, MyCharacter->CurrentColumn);
+
+    ACell_Actor* BestEscapeCell = nullptr;
+    int32 MaxDistance = -1;
+
+    const TArray<ACell_Actor*> AllCells = GridManager->GetAllCells();
+    for (ACell_Actor* Cell : AllCells)
+    {
+        if (Cell && !Cell->bIsOccupied && Cell->CellType != ECellType::Obstacle)
+        {
+            int32 RowDiff = FMath::Abs(Cell->Row - Threat->CurrentRow);
+            int32 ColDiff = FMath::Abs(Cell->Column - Threat->CurrentColumn);
+            int32 Distance = RowDiff + ColDiff;
+
+            if (Distance > MaxDistance)
+            {
+                TArray<AGameCharacter*> Ignore;
+                for (AGameCharacter* Unit : GameMode->GetAIUnits())
+                {
+                    if (Unit && Unit != MyCharacter)
+                    {
+                        Ignore.Add(Unit);
+                    }
+                }
+
+                TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, Cell, Ignore);
+                if (Path.Num() > 1 && Path.Num() - 1 <= MyCharacter->GetMaxMovement())
+                {
+                    MaxDistance = Distance;
+                    BestEscapeCell = Cell;
+                    LastPath = Path;
+                }
+            }
+        }
+    }
+
+    if (BestEscapeCell)
+    {
+        MyCharacter->OnMovementFinished.Clear();
+        MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+        MyCharacter->StartStepByStepMovement(LastPath);
+        MyCharacter->HasMovedThisTurn = true;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[IA] Sniper non ha trovato cella di fuga, attacca."));
+        // Se non trova celle di fuga, attacca subito
+        MyCharacter->Attack(Threat);
+        MyCharacter->HasAttackedThisTurn = true;
+        GameMode->NotifyAIUnitMoved();
+    }
 }

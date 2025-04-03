@@ -229,7 +229,6 @@ void AMyPlayerController::HandleLeftMouseClick()
             {
                 DeselectCurrentUnit();
                 SelectedCharacter = ClickedUnit;
-                Possess(ClickedUnit);
                 RefreshCellOccupancy();
                 HighlightReachableCells(ClickedUnit);
                 HighlightEnemyCellsInRange();
@@ -660,7 +659,7 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
 
     if (SpawnedUnit)
     {
-        FVector NewLocation = DesiredSpawnLocation + FVector(0, 0, SpawnedUnit->UnitSpawnZOffset);
+        FVector NewLocation = MyGameMode->GetCellLocationWithOffset(ClickedCell);
         SpawnedUnit->SetActorLocation(NewLocation);
 
         SpawnedUnit->bIsAIControlled = false;
