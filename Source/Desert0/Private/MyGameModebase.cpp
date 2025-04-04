@@ -1,4 +1,5 @@
 #include "MyGameModebase.h"
+#include "CoinFlipActor.h"
 #include "Grid_Manager.h"
 #include "Engine/World.h"
 #include "MyPlayerController.h"
@@ -35,9 +36,38 @@ void AMyGameModebase::BeginPlay()
         }
     }
 
+    // ➕ LANCIO DELLA MONETA CON ANIMAZIONE
+    if (CoinFlipActorClass)
+    {
+        FVector CoinSpawnLocation = FVector(0.f, 0.f, 200.f); // posizione visiva sopra il centro
+        FRotator CoinRotation = FRotator::ZeroRotator;
+
+        ACoinFlipActor* Coin = GetWorld()->SpawnActor<ACoinFlipActor>(CoinFlipActorClass, CoinSpawnLocation, CoinRotation);
+        if (Coin)
+        {
+            bPlayerStartsPlacement = FMath::RandBool(); // decidi chi inizia
+            Coin->StartFlip(bPlayerStartsPlacement);    // avvia animazione
+            return; // interrompi qui: la logica parte in OnFlipFinished()
+        }
+    }
+
+    // 👇 Questa parte verrà eseguita solo se CoinFlipActorClass non è impostato
     bPlayerStartsPlacement = FMath::RandBool();
     UE_LOG(LogTemp, Log, TEXT("Lancio della moneta: %s inizia il posizionamento."), bPlayerStartsPlacement ? TEXT("Giocatore") : TEXT("IA"));
 
+    if (bPlayerStartsPlacement)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("L'IA sta posizionando la prima unità..."));
+        PlaceAIUnit();
+    }
+}
+
+void AMyGameModebase::StartPlacementPhase()
+{
     if (bPlayerStartsPlacement)
     {
         UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));

@@ -27,6 +27,10 @@ public:
     FVector GetCellLocationWithOffset(ACell_Actor* Cell) const;
 
     // === FASI DI GIOCO ===
+    
+    UPROPERTY(EditDefaultsOnly, Category = "Coin Flip")
+    TSubclassOf<class ACoinFlipActor> CoinFlipActorClass;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Phase")
     EGamePhase CurrentPhase;
 
@@ -46,6 +50,9 @@ public:
     void EndTurn();
 
     // === POSIZIONAMENTO ===
+    UFUNCTION(BlueprintCallable)
+    void StartPlacementPhase();
+
     UFUNCTION(BlueprintCallable, Category = "Placement")
     void NotifyPlayerUnitPlaced();
 
