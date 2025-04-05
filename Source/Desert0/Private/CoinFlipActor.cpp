@@ -83,10 +83,20 @@ void ACoinFlipActor::StartFlip(bool bPlayerStarts)
 }
 void ACoinFlipActor::OnFlipFinished()
 {
-    // Chiede al GameMode di partire
     AMyGameModebase* GM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
     if (GM)
     {
+        // ✅ CREA IL WIDGET QUI DOPO IL LANCIO DELLA MONETA
+        if (GM->TurnImageWidgetClass)
+        {
+            GM->TurnImageWidget = Cast<UTurnImageWidget>(CreateWidget(GetWorld(), GM->TurnImageWidgetClass));
+            if (GM->TurnImageWidget)
+            {
+                GM->TurnImageWidget->AddToViewport();
+                GM->TurnImageWidget->SetTurnImage(GM->bPlayerStartsPlacement);
+            }
+        }
+
         GM->StartPlacementPhase();
     }
 

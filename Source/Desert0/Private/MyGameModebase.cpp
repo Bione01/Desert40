@@ -3,6 +3,7 @@
 #include "Grid_Manager.h"
 #include "Engine/World.h"
 #include "MyPlayerController.h"
+#include "TurnImageWidget.h"
 #include "TimerManager.h"
 #include "Cell_Actor.h"
 #include "Kismet/GameplayStatics.h"
@@ -47,6 +48,7 @@ void AMyGameModebase::BeginPlay()
         {
             bPlayerStartsPlacement = FMath::RandBool(); // decidi chi inizia
             Coin->StartFlip(bPlayerStartsPlacement);    // avvia animazione
+
             return; // interrompi qui: la logica parte in OnFlipFinished()
         }
     }
@@ -68,6 +70,11 @@ void AMyGameModebase::BeginPlay()
 
 void AMyGameModebase::StartPlacementPhase()
 {
+    if (TurnImageWidget)
+    {
+        TurnImageWidget->SetTurnImage(bPlayerStartsPlacement);
+    }
+
     if (bPlayerStartsPlacement)
     {
         UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
@@ -103,34 +110,41 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::StartBattlePhase);
+        return;
     }
 
-    else
+    if (bPlayerStartsPlacement)
     {
-        if (bPlayerStartsPlacement)
+        if (PlayerUnitsPlaced > AIUnitsPlaced)
         {
-            if (PlayerUnitsPlaced > AIUnitsPlaced)
-            {
-                PlaceAIUnit();
-            }
-            else
-            {
-                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-            }
+            // ✅ Ora tocca all’IA → aggiorna scritta
+            if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
+
+            GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
-            if (PlayerUnitsPlaced == AIUnitsPlaced)
-            {
-                GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-            }
+            if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
+            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+        }
+    }
+    else
+    {
+        if (PlayerUnitsPlaced == AIUnitsPlaced)
+        {
+            // ✅ Ora tocca all’IA → aggiorna scritta
+            if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
+
+            GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
+        }
+        else
+        {
+            if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
+            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
         }
     }
 }
+
 
 void AMyGameModebase::NotifyAIUnitPlaced()
 {
@@ -139,23 +153,43 @@ void AMyGameModebase::NotifyAIUnitPlaced()
 
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
-        // Aspetta un frame per sicurezza
+        // Fine posizionamento → inizia battaglia
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::StartBattlePhase);
+        return; // ✅ Importante: non continuare sotto
     }
 
+    if (AIUnitsPlaced >= PlayerUnitsPlaced)
     {
-        if (AIUnitsPlaced >= PlayerUnitsPlaced)
+        UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+
+        if (TurnImageWidget)
         {
-            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            TurnImageWidget->SetTurnImage(true); // Mostra "YOUR TURN"
         }
-        else
+    }
+    else
+    {
+        if (TurnImageWidget)
         {
-            GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
+            TurnImageWidget->SetTurnImage(false); // Mostra "ENEMY TURN"
         }
+
+        GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
     }
 }
 
 void AMyGameModebase::PlaceAIUnit()
+{
+    GetWorldTimerManager().SetTimer(
+        EnemyTurnTimerHandle,
+        this,
+        &AMyGameModebase::PlaceAIUnit_Internal,
+        1.0f,
+        false
+    );
+}
+
+void AMyGameModebase::PlaceAIUnit_Internal()
 {
     if (!GridManager || AIUnitClasses.Num() == 0) return;
 
@@ -311,7 +345,12 @@ void AMyGameModebase::StartPlayerTurn()
     CurrentTurn = ETurnState::TS_PlayerTurn;
     PlayerUnitsMoved = 0;
     UE_LOG(LogTemp, Log, TEXT("Turno del giocatore iniziato."));
-    
+
+    if (TurnImageWidget)
+    {
+        TurnImageWidget->SetTurnImage(true); // oppure PlayTurnAnimation(true);
+    }
+
     for (AGameCharacter* Unit : PlayerUnits)
     {
         if (Unit)
@@ -322,12 +361,18 @@ void AMyGameModebase::StartPlayerTurn()
     }
 }
 
+
 void AMyGameModebase::StartEnemyTurn()
 {
     CurrentTurn = ETurnState::TS_EnemyTurn;
     AIUnitsMoved = 0;
     CurrentAIUnitIndex = 0;
     UE_LOG(LogTemp, Log, TEXT("Turno nemico iniziato."));
+
+    if (TurnImageWidget)
+    {
+        TurnImageWidget->SetTurnImage(false); // oppure PlayTurnAnimation(false);
+    }
 
     for (AGameCharacter* Unit : AIUnits)
     {
@@ -336,7 +381,6 @@ void AMyGameModebase::StartEnemyTurn()
             Unit->HasMovedThisTurn = false;
             Unit->HasAttackedThisTurn = false;
 
-            // 🔥 Pulizia del path
             AMyAIController* AIController = Cast<AMyAIController>(Unit->GetController());
             if (AIController)
             {
@@ -405,11 +449,20 @@ void AMyGameModebase::MoveNextAIUnit()
         if (AIController)
         {
             UE_LOG(LogTemp, Log, TEXT("L'IA controlla: %s"), *AIUnit->GetName());
-            AIController->RunTurn();
+
+            // 🔁 Aggiungiamo un delay prima di chiamare RunTurn()
+            GetWorldTimerManager().SetTimer(
+                EnemyTurnTimerHandle,
+                FTimerDelegate::CreateLambda([AIController]()
+                {
+                    AIController->RunTurn();
+                }),
+                1.0f, // ⏱️ delay prima del movimento
+                false
+            );
         }
     }
 }
-
 
 void AMyGameModebase::EndTurn()
 {

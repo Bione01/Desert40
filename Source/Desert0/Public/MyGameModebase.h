@@ -1,9 +1,12 @@
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "TurnState.h"
+#include "TurnImageWidget.h"
 #include "GameCharacter.h"
+#include "Blueprint/UserWidget.h"
 #include "MyGameModebase.generated.h"
 
 UENUM(BlueprintType)
@@ -30,6 +33,13 @@ public:
     
     UPROPERTY(EditDefaultsOnly, Category = "Coin Flip")
     TSubclassOf<class ACoinFlipActor> CoinFlipActorClass;
+    
+    UPROPERTY()
+    class UTurnImageWidget* TurnImageWidget;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> TurnImageWidgetClass;
+
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Phase")
     EGamePhase CurrentPhase;
@@ -97,11 +107,17 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Units")
     TSubclassOf<AGameCharacter> SniperCharacter;
     
+    UPROPERTY(BlueprintReadOnly)
+    bool bPlayerStartsPlacement;
+
     UFUNCTION(BlueprintCallable, Category = "Game Mode")
     void AddPlayerUnit(AGameCharacter* Unit);
     
     int32 CurrentAIIndex;
    
+    UFUNCTION()
+    void PlaceAIUnit_Internal();
+
     UFUNCTION()
     void StartTurn();
     
@@ -150,6 +166,4 @@ protected:
     int32 AIUnitsPlaced;
     int32 PlayerUnitsMoved;
     int32 AIUnitsMoved;
-
-    bool bPlayerStartsPlacement;
 };
