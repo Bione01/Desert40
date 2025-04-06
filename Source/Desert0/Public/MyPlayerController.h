@@ -19,6 +19,13 @@ public:
     virtual void SetupInputComponent() override;
 
     // === Widget ===
+    
+    UFUNCTION()
+    void SetCharacterSelectionVisibility(bool bVisible);
+
+    UFUNCTION(BlueprintCallable)
+     void HideCharacterSelectionWidget();
+    
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
     TSubclassOf<UUserWidget> CharacterSelectionWidgetClass;
 

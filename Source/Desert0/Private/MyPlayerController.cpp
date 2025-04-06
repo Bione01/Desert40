@@ -70,12 +70,14 @@ void AMyPlayerController::ShowCharacterSelectionWidget()
             }
 
             CharacterSelectionWidget->AddToViewport();
+            CharacterSelectionWidget->SetVisibility(ESlateVisibility::Hidden); // 👈 nascondi inizialmente
 
-            // Imposta input su UIOnly
+            // Imposta input su UIOnly se vuoi (opzionale)
             SetGameInputMode(false);
         }
     }
 }
+
 
 ACell_Actor* AMyPlayerController::GetClickedCell()
 {
@@ -712,4 +714,20 @@ void AMyPlayerController::UpdateHighlights()
     ClearHighlights();
     HighlightReachableCells(SelectedCharacter);
     HighlightEnemyCellsInRange();
+}
+
+void AMyPlayerController::HideCharacterSelectionWidget()
+{
+    if (CharacterSelectionWidget)
+    {
+        CharacterSelectionWidget->SetVisibility(ESlateVisibility::Hidden);
+    }
+}
+
+void AMyPlayerController::SetCharacterSelectionVisibility(bool bVisible)
+{
+    if (CharacterSelectionWidget)
+    {
+        CharacterSelectionWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+    }
 }

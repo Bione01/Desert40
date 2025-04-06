@@ -49,7 +49,14 @@ void AMyGameModebase::BeginPlay()
         if (Coin)
         {
             DisablePlayerInput();
-            
+
+            // 👇 Nasconde i bottoni di selezione personaggio
+            AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+            if (PC)
+            {
+                PC->HideCharacterSelectionWidget();
+            }
+
             bPlayerStartsPlacement = FMath::RandBool(); // decidi chi inizia
             Coin->StartFlip(bPlayerStartsPlacement);    // avvia animazione
 
@@ -72,21 +79,23 @@ void AMyGameModebase::BeginPlay()
     }
 }
 
+
 void AMyGameModebase::StartPlacementPhase()
 {
     if (TurnImageWidget)
-    {
         TurnImageWidget->SetTurnImage(bPlayerStartsPlacement);
-    }
+
+    AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 
     if (bPlayerStartsPlacement)
     {
         EnablePlayerInput();
-        UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
+        if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("L'IA sta posizionando la prima unità..."));
+        DisablePlayerInput();
+        if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
         PlaceAIUnit();
     }
 }
@@ -110,7 +119,6 @@ FVector AMyGameModebase::GetCellLocationWithOffset(ACell_Actor* Cell) const
 void AMyGameModebase::NotifyPlayerUnitPlaced()
 {
     PlayerUnitsPlaced++;
-    UE_LOG(LogTemp, Log, TEXT("Unità del Giocatore posizionata. Totale: %d"), PlayerUnitsPlaced);
 
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
@@ -118,44 +126,38 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
         return;
     }
 
+    AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+
     if (bPlayerStartsPlacement)
     {
         if (PlayerUnitsPlaced > AIUnitsPlaced)
         {
-            // ✅ Ora tocca all’IA → aggiorna scritta
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
-
             DisablePlayerInput();
-            
+            if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
             GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
-            
             EnablePlayerInput();
-            
-            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
         }
     }
     else
     {
         if (PlayerUnitsPlaced == AIUnitsPlaced)
         {
-            // ✅ Ora tocca all’IA → aggiorna scritta
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
-            
             DisablePlayerInput();
-
+            if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
             GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
-            
             EnablePlayerInput();
-            
-            UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
+            if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
         }
     }
 }
@@ -164,36 +166,26 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
 void AMyGameModebase::NotifyAIUnitPlaced()
 {
     AIUnitsPlaced++;
-    UE_LOG(LogTemp, Log, TEXT("Unità dell'IA posizionata. Totale: %d"), AIUnitsPlaced);
 
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
-        // Fine posizionamento → inizia battaglia
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::StartBattlePhase);
-        return; // ✅ Importante: non continuare sotto
+        return;
     }
+
+    AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 
     if (AIUnitsPlaced >= PlayerUnitsPlaced)
     {
-        UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
-
-        if (TurnImageWidget)
-        {
-            TurnImageWidget->SetTurnImage(true); // Mostra "YOUR TURN"
-        }
-        
+        if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
         EnablePlayerInput();
-        
+        if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
     }
     else
     {
-        if (TurnImageWidget)
-        {
-            TurnImageWidget->SetTurnImage(false); // Mostra "ENEMY TURN"
-        }
-
+        if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
         DisablePlayerInput();
-        
+        if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
     }
 }
@@ -340,18 +332,15 @@ void AMyGameModebase::PlacePlayerUnit()
 void AMyGameModebase::StartBattlePhase()
 {
     CurrentPhase = EGamePhase::GP_Battle;
-    UE_LOG(LogTemp, Log, TEXT("Fase di battaglia iniziata."));
     PlayerUnitsMoved = 0;
     AIUnitsMoved = 0;
+
+    AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+    if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA: nascondi i bottoni quando inizia la battaglia
+
     if (bPlayerStartsPlacement)
     {
-        // Aggiorna occupazione celle dopo il piazzamento
-        AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
-        if (PC)
-        {
-            PC->RefreshCellOccupancy();
-        }
-        
+        if (PC) PC->RefreshCellOccupancy();
         StartPlayerTurn();
     }
     else
@@ -364,15 +353,12 @@ void AMyGameModebase::StartPlayerTurn()
 {
     CurrentTurn = ETurnState::TS_PlayerTurn;
     PlayerUnitsMoved = 0;
-    UE_LOG(LogTemp, Log, TEXT("Turno del giocatore iniziato."));
 
     if (TurnImageWidget)
-    {
-        TurnImageWidget->SetTurnImage(true); // oppure PlayTurnAnimation(true);
-    }
+        TurnImageWidget->SetTurnImage(true);
 
     EnablePlayerInput();
-    
+
     for (AGameCharacter* Unit : PlayerUnits)
     {
         if (Unit)
@@ -383,21 +369,17 @@ void AMyGameModebase::StartPlayerTurn()
     }
 }
 
-
 void AMyGameModebase::StartEnemyTurn()
 {
     CurrentTurn = ETurnState::TS_EnemyTurn;
     AIUnitsMoved = 0;
     CurrentAIUnitIndex = 0;
-    UE_LOG(LogTemp, Log, TEXT("Turno nemico iniziato."));
 
     if (TurnImageWidget)
-    {
-        TurnImageWidget->SetTurnImage(false); // oppure PlayTurnAnimation(false);
-    }
+        TurnImageWidget->SetTurnImage(false);
 
     DisablePlayerInput();
-    
+
     for (AGameCharacter* Unit : AIUnits)
     {
         if (Unit)
@@ -415,6 +397,7 @@ void AMyGameModebase::StartEnemyTurn()
 
     MoveNextAIUnit();
 }
+
 
 
 void AMyGameModebase::NotifyPlayerUnitMoved()
@@ -715,8 +698,8 @@ void AMyGameModebase::DisablePlayerInput()
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (PC)
     {
-        PC->SetInputMode(FInputModeUIOnly()); // Blocca interazione con il mondo
-        PC->bShowMouseCursor = true;          // Mostra comunque il cursore, se vuoi
+        PC->SetInputMode(FInputModeUIOnly());
+        PC->bShowMouseCursor = true;
     }
 }
 
@@ -725,7 +708,7 @@ void AMyGameModebase::EnablePlayerInput()
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (PC)
     {
-        PC->SetInputMode(FInputModeGameAndUI()); // Riabilita input sul mondo
+        PC->SetInputMode(FInputModeGameAndUI());
         PC->bShowMouseCursor = true;
     }
 }
