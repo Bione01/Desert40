@@ -66,5 +66,11 @@ public:
 
     UFUNCTION(BlueprintCallable)
     void SetAttackHighlight(bool bHighlight);
+    
+    UFUNCTION(BlueprintCallable)
+    void SetOriginHighlight(bool bOn);
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+    UMaterialInterface* OriginHighlightMaterial;
 
 };

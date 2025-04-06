@@ -23,6 +23,12 @@ AGameCharacter::AGameCharacter()
 void AGameCharacter::BeginPlay()
 {
     Super::BeginPlay();
+
+    UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
+    if (Mesh)
+    {
+        OriginalMaterial = Mesh->GetMaterial(0);
+    }
 }
 
 void AGameCharacter::Tick(float DeltaTime)
@@ -204,7 +210,18 @@ void AGameCharacter::UpdateSmoothMovement()
 void AGameCharacter::ReceiveDamage(int32 DamageAmount)
 {
     Health -= DamageAmount;
-    UE_LOG(LogTemp, Warning, TEXT("%s ha subito %d danni. Salute residua: %d"), *GetName(), DamageAmount, Health);
+
+    // Effetto visivo
+    if (HitEffect)
+    {
+        UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, GetActorLocation());
+    }
+
+    // Suono
+    if (HitSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
+    }
 
     if (Health <= 0)
     {
@@ -241,4 +258,75 @@ void AGameCharacter::Attack(AGameCharacter* Target)
     UE_LOG(LogTemp, Log, TEXT("%s attacca %s infliggendo %d danni."), *GetName(), *Target->GetName(), DamageDealt);
 
     Target->ReceiveDamage(DamageDealt);
+
+    // 🔁 Contrattacco
+    Target->HandleCounterAttack(this);
+}
+
+void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
+{
+    if (!Attacker) return;
+
+    // Solo se chi attacca è Sniper
+    ASniperCharacter* AttackingSniper = Cast<ASniperCharacter>(Attacker);
+    if (!AttackingSniper) return;
+
+    // Il contrattacco avviene solo se adiacenti o se anche il difensore è uno Sniper
+    int32 RowDiff = FMath::Abs(CurrentRow - Attacker->CurrentRow);
+    int32 ColDiff = FMath::Abs(CurrentColumn - Attacker->CurrentColumn);
+    bool bIsAdjacent = (RowDiff + ColDiff == 1);
+
+    if (IsSniper() || bIsAdjacent)
+    {
+        int32 CounterDamage = FMath::RandRange(1, 3);
+        UE_LOG(LogTemp, Warning, TEXT("[COUNTERATTACK] %s contrattacca %s infliggendo %d danni."),
+            *GetName(), *Attacker->GetName(), CounterDamage);
+
+        Attacker->ReceiveDamage(CounterDamage);
+        Attacker->PlayCounterHitFlash(); // 🔥 Effetto visivo aggiunto
+    }
+}
+
+void AGameCharacter::HandleDeath()
+{
+    UE_LOG(LogTemp, Warning, TEXT("%s è stato sconfitto!"), *GetName());
+
+    if (CurrentCell)
+    {
+        CurrentCell->bIsOccupied = false;
+        CurrentCell->OccupyingUnit = nullptr;
+    }
+
+    AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+    if (MyGameMode)
+    {
+        MyGameMode->OnUnitKilled(this);
+    }
+
+    Destroy();
+}
+void AGameCharacter::PlayCounterHitFlash()
+{
+    UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
+    if (Mesh && CounterHitMaterial)
+    {
+        Mesh->SetMaterial(0, CounterHitMaterial);
+
+        GetWorld()->GetTimerManager().SetTimer(
+            CounterFlashTimer,
+            this,
+            &AGameCharacter::EndCounterHitFlash,
+            0.3f,
+            false
+        );
+    }
+}
+
+void AGameCharacter::EndCounterHitFlash()
+{
+    UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
+    if (Mesh && OriginalMaterial)
+    {
+        Mesh->SetMaterial(0, OriginalMaterial);
+    }
 }

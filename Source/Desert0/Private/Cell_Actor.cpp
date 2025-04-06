@@ -66,3 +66,18 @@ void ACell_Actor::SetAttackHighlight(bool bHighlight)
         }
     }
 }
+
+void ACell_Actor::SetOriginHighlight(bool bOn)
+{
+    if (MyMesh)
+    {
+        if (bOn && OriginHighlightMaterial)
+        {
+            MyMesh->SetMaterial(0, OriginHighlightMaterial);
+        }
+        else if (DefaultMaterial)
+        {
+            MyMesh->SetMaterial(0, DefaultMaterial);
+        }
+    }
+}

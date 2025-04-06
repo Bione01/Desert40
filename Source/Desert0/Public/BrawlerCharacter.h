@@ -17,4 +17,3 @@ public:
     virtual void MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange = false) override;
 
 };
-

@@ -257,6 +257,8 @@ void AMyGameModebase::PlaceAIUnit_Internal()
         SpawnedAIUnit->CurrentRow = DestinationCell->Row;
         SpawnedAIUnit->CurrentColumn = DestinationCell->Column;
 
+        DestinationCell->SetOriginHighlight(true);
+        SpawnedAIUnit->HighlightedOriginCell = DestinationCell;
         // ✅ Aggiungiamo l'unità all'array
         AIUnits.Add(SpawnedAIUnit);
 
@@ -335,6 +337,19 @@ void AMyGameModebase::StartBattlePhase()
     PlayerUnitsMoved = 0;
     AIUnitsMoved = 0;
 
+    if (GridManager)
+        {
+            for (ACell_Actor* Cell : GridManager->GetAllCells())
+            {
+                if (Cell)
+                {
+                    Cell->SetHighlight(false);
+                    Cell->SetAttackHighlight(false);
+                    Cell->SetOriginHighlight(false);
+                }
+            }
+        }
+    
     AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
     if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA: nascondi i bottoni quando inizia la battaglia
 
@@ -353,18 +368,24 @@ void AMyGameModebase::StartPlayerTurn()
 {
     CurrentTurn = ETurnState::TS_PlayerTurn;
     PlayerUnitsMoved = 0;
-
+    
     if (TurnImageWidget)
         TurnImageWidget->SetTurnImage(true);
-
+    
     EnablePlayerInput();
-
+    
     for (AGameCharacter* Unit : PlayerUnits)
     {
         if (Unit)
         {
             Unit->HasMovedThisTurn = false;
             Unit->HasAttackedThisTurn = false;
+            
+            if (Unit->CurrentCell)
+            {
+                Unit->CurrentCell->SetOriginHighlight(true);
+                Unit->HighlightedOriginCell = Unit->CurrentCell; // 🔥 salva riferimento
+            }
         }
     }
 }

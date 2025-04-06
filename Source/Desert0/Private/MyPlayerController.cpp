@@ -518,7 +518,7 @@ void AMyPlayerController::OnPlayerMovementFinished()
 
 void AMyPlayerController::CheckEndOfPlayerUnitTurn()
 {
-    if (!SelectedCharacter) return;
+    if (!IsValid(SelectedCharacter)) return;
 
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
@@ -526,26 +526,39 @@ void AMyPlayerController::CheckEndOfPlayerUnitTurn()
     // Se l'unità ha mosso e attaccato, il turno è finito
     if (SelectedCharacter->HasMovedThisTurn && SelectedCharacter->HasAttackedThisTurn)
     {
+        if (IsValid(SelectedCharacter->HighlightedOriginCell))
+        {
+            SelectedCharacter->HighlightedOriginCell->SetOriginHighlight(false);
+            SelectedCharacter->HighlightedOriginCell = nullptr;
+        }
+
         MyGameMode->NotifyPlayerUnitMoved();
         DeselectCurrentUnit();
         return;
     }
 
+
     // Se l'unità non ha ancora mosso
     if (!SelectedCharacter->HasMovedThisTurn)
     {
-        // Può ancora muoversi
         return;
     }
 
     // Se l'unità non ha attaccato
     if (!SelectedCharacter->HasAttackedThisTurn)
     {
-        // Dopo il movimento, se non ha attaccato ed è in range, aspettiamo click → già gestito in HandleClick
         if (!bIsWaitingForAttack)
         {
-            MyGameMode->NotifyPlayerUnitMoved(); // Passa il turno all'IA
+            // 🔥 SPEGNI LUCE ORIGINE
+            if (IsValid(SelectedCharacter->HighlightedOriginCell))
+            {
+                SelectedCharacter->HighlightedOriginCell->SetOriginHighlight(false);
+                SelectedCharacter->HighlightedOriginCell = nullptr;
+            }
+
+            MyGameMode->NotifyPlayerUnitMoved();
             DeselectCurrentUnit();
+            return;
         }
     }
 }
@@ -555,18 +568,21 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
     bIsMoving = false;
     ClearHighlights();
 
-    if (!SelectedCharacter) return;
-
-    if (SelectedCharacter->CurrentCell)
-    {
-        SelectedCharacter->CurrentRow = SelectedCharacter->CurrentCell->Row;
-        SelectedCharacter->CurrentColumn = SelectedCharacter->CurrentCell->Column;
-    }
-
+    if (!IsValid(SelectedCharacter)) return;
+    
     RefreshCellOccupancy();
 
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
+
+    // ✅ Spegni SOLO la cella iniziale
+    if (IsValid(SelectedCharacter->HighlightedOriginCell))
+    {
+        SelectedCharacter->HighlightedOriginCell->SetOriginHighlight(false);
+        SelectedCharacter->HighlightedOriginCell = nullptr;
+    }
+
+    SelectedCharacter->HasMovedThisTurn = true;
 
     bool bEnemyInRange = false;
     for (AGameCharacter* Enemy : MyGameMode->GetAIUnits())
@@ -583,9 +599,7 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
         }
     }
 
-    SelectedCharacter->HasMovedThisTurn = true;
-
-    HighlightEnemyCellsInRange(); // 🔥 Qui aggiorna le celle rosse
+    HighlightEnemyCellsInRange();
 
     if (bEnemyInRange)
     {
@@ -598,17 +612,6 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
     }
 }
 
-
-void AMyPlayerController::DeselectCurrentUnit()
-{
-    if (SelectedCharacter)
-    {
-        ClearHighlights();
-        UnPossess();
-        SelectedCharacter = nullptr;
-        UE_LOG(LogTemp, Log, TEXT("Unità deselezionata."));
-    }
-}
 
 void AMyPlayerController::SkipCurrentAttack()
 {
@@ -673,6 +676,9 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
         SpawnedUnit->CurrentColumn = ClickedCell->Column;
         SpawnedUnit->CurrentCell = ClickedCell;
         
+        ClickedCell->SetOriginHighlight(true);
+        SpawnedUnit->HighlightedOriginCell = ClickedCell;
+        
         MyGameMode->AddPlayerUnit(SpawnedUnit);
         MyGameMode->NotifyPlayerUnitPlaced();
 
@@ -729,5 +735,25 @@ void AMyPlayerController::SetCharacterSelectionVisibility(bool bVisible)
     if (CharacterSelectionWidget)
     {
         CharacterSelectionWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+    }
+}
+void AMyPlayerController::DeselectCurrentUnit()
+{
+    if (SelectedCharacter)
+    {
+        // 🔥 NON toccare la luce d'origine
+        // Spegni solo le celle evidenziate per il movimento e attacco
+        for (ACell_Actor* Cell : GridManager->GetAllCells())
+        {
+            if (Cell)
+            {
+                Cell->SetHighlight(false);
+                Cell->SetAttackHighlight(false);
+            }
+        }
+
+        UnPossess();
+        SelectedCharacter = nullptr;
+        UE_LOG(LogTemp, Log, TEXT("Unità deselezionata."));
     }
 }

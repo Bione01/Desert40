@@ -22,6 +22,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMovementFinished OnMovementFinished;
     
+    virtual void HandleCounterAttack(AGameCharacter* Attacker);
+    virtual void HandleDeath();
+
     /** Applica danno all'unità */
     void ReceiveDamage(int32 DamageAmount);
     
@@ -94,6 +97,26 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
     float MovementSpeed = 600.f;
     
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual")
+    UMaterialInterface* CounterHitMaterial;
+
+    UMaterialInterface* OriginalMaterial; // per ripristinare
+
+    FTimerHandle CounterFlashTimer;
+
+    void PlayCounterHitFlash();
+    void EndCounterHitFlash();
+
+    UPROPERTY(EditDefaultsOnly, Category = "Effects")
+    UParticleSystem* HitEffect;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Sound")
+    USoundBase* HitSound;
+    
+    // GameCharacter.h
+    UPROPERTY()
+    ACell_Actor* HighlightedOriginCell = nullptr;
+
     FVector StartLocation;
     FVector EndLocation;
     float CurrentLerpTime;

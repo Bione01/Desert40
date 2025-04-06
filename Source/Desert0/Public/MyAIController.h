@@ -22,6 +22,7 @@ public:
 private:
     AGameCharacter* FindClosestEnemy();
 
+    ACell_Actor* HighlightedStartCell = nullptr;
     // Funzione per aggiornare il target
     void UpdateTarget(AGameCharacter* NewTarget);
 
