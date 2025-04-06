@@ -28,6 +28,9 @@ public:
     virtual void BeginPlay() override;
     
     FVector GetCellLocationWithOffset(ACell_Actor* Cell) const;
+    
+    void DisablePlayerInput();
+    void EnablePlayerInput();
 
     // === FASI DI GIOCO ===
     
@@ -109,11 +112,17 @@ public:
     
     UPROPERTY(BlueprintReadOnly)
     bool bPlayerStartsPlacement;
-
-    UFUNCTION(BlueprintCallable, Category = "Game Mode")
-    void AddPlayerUnit(AGameCharacter* Unit);
     
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<class UUserWidget> EndGameWidgetClass;
+
+    UPROPERTY()
+    UUserWidget* EndGameWidget;
+
     int32 CurrentAIIndex;
+    
+    UFUNCTION(BlueprintCallable)
+    void AddPlayerUnit(AGameCharacter* Unit);
    
     UFUNCTION()
     void PlaceAIUnit_Internal();

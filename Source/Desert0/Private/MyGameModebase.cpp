@@ -6,6 +6,8 @@
 #include "TurnImageWidget.h"
 #include "TimerManager.h"
 #include "Cell_Actor.h"
+#include "Components/Image.h"
+#include "Components/Button.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameCharacter.h"
 #include "AIController.h"
@@ -46,6 +48,8 @@ void AMyGameModebase::BeginPlay()
         ACoinFlipActor* Coin = GetWorld()->SpawnActor<ACoinFlipActor>(CoinFlipActorClass, CoinSpawnLocation, CoinRotation);
         if (Coin)
         {
+            DisablePlayerInput();
+            
             bPlayerStartsPlacement = FMath::RandBool(); // decidi chi inizia
             Coin->StartFlip(bPlayerStartsPlacement);    // avvia animazione
 
@@ -77,6 +81,7 @@ void AMyGameModebase::StartPlacementPhase()
 
     if (bPlayerStartsPlacement)
     {
+        EnablePlayerInput();
         UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
     }
     else
@@ -120,11 +125,16 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
             // ✅ Ora tocca all’IA → aggiorna scritta
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
 
+            DisablePlayerInput();
+            
             GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
+            
+            EnablePlayerInput();
+            
             UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
         }
     }
@@ -134,12 +144,17 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
         {
             // ✅ Ora tocca all’IA → aggiorna scritta
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
+            
+            DisablePlayerInput();
 
             GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
+            
+            EnablePlayerInput();
+            
             UE_LOG(LogTemp, Log, TEXT("Tocca al giocatore a posizionare."));
         }
     }
@@ -166,6 +181,9 @@ void AMyGameModebase::NotifyAIUnitPlaced()
         {
             TurnImageWidget->SetTurnImage(true); // Mostra "YOUR TURN"
         }
+        
+        EnablePlayerInput();
+        
     }
     else
     {
@@ -174,6 +192,8 @@ void AMyGameModebase::NotifyAIUnitPlaced()
             TurnImageWidget->SetTurnImage(false); // Mostra "ENEMY TURN"
         }
 
+        DisablePlayerInput();
+        
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
     }
 }
@@ -351,6 +371,8 @@ void AMyGameModebase::StartPlayerTurn()
         TurnImageWidget->SetTurnImage(true); // oppure PlayTurnAnimation(true);
     }
 
+    EnablePlayerInput();
+    
     for (AGameCharacter* Unit : PlayerUnits)
     {
         if (Unit)
@@ -374,6 +396,8 @@ void AMyGameModebase::StartEnemyTurn()
         TurnImageWidget->SetTurnImage(false); // oppure PlayTurnAnimation(false);
     }
 
+    DisablePlayerInput();
+    
     for (AGameCharacter* Unit : AIUnits)
     {
         if (Unit)
@@ -411,6 +435,9 @@ void AMyGameModebase::NotifyAIUnitMoved()
     if (CurrentAIUnitIndex >= AIUnits.Num())
     {
         UE_LOG(LogTemp, Log, TEXT("Tutte le unità IA hanno agito. Passo il turno al Player."));
+        
+      
+        
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::EndTurn);
     }
     else
@@ -599,7 +626,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
     {
         UE_LOG(LogTemp, Warning, TEXT("Hai perso!"));
     }
-
+    
     // Blocca input
     AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
     if (PC)
@@ -607,7 +634,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
         PC->SetInputMode(FInputModeUIOnly());
         PC->bShowMouseCursor = true;
     }
-
+    
     // Blocca IA
     for (AGameCharacter* Unit : AIUnits)
     {
@@ -621,6 +648,84 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
             }
         }
     }
+    if (EndGameWidgetClass)
+    {
+        EndGameWidget = CreateWidget<UUserWidget>(GetWorld(), EndGameWidgetClass);
+        if (EndGameWidget)
+        {
+            EndGameWidget->AddToViewport();
 
-    // TODO: Se vuoi mostra un widget di vittoria/sconfitta qui
+            // Mostra l'immagine corretta
+            UImage* Image_YouWon = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_YouWon")));
+            UImage* Image_GameOver = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_GameOver")));
+
+            if (bPlayerWon && Image_YouWon)
+            {
+                Image_YouWon->SetVisibility(ESlateVisibility::Visible);
+            }
+            else if (!bPlayerWon && Image_GameOver)
+            {
+                Image_GameOver->SetVisibility(ESlateVisibility::Visible);
+            }
+
+            // Mostra mouse e blocca input
+            APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+            if (PC)
+            {
+                PC->SetInputMode(FInputModeUIOnly());
+                PC->SetShowMouseCursor(true);
+            }
+        }
+    }
+    
+    if (EndGameWidgetClass)
+    {
+        EndGameWidget = CreateWidget<UUserWidget>(GetWorld(), EndGameWidgetClass);
+        if (EndGameWidget)
+        {
+            EndGameWidget->AddToViewport();
+
+            // Mostra l'immagine giusta
+            UImage* Image_YouWon = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_YouWon")));
+            UImage* Image_GameOver = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_GameOver")));
+
+            if (bPlayerWon && Image_YouWon)
+            {
+                Image_YouWon->SetVisibility(ESlateVisibility::Visible);
+            }
+            else if (!bPlayerWon && Image_GameOver)
+            {
+                Image_GameOver->SetVisibility(ESlateVisibility::Visible);
+            }
+
+            // Blocca l’input e mostra il mouse
+            APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+            if (PC)
+            {
+                PC->SetInputMode(FInputModeUIOnly());
+                PC->SetShowMouseCursor(true);
+            }
+        }
+    }
+
+}
+
+void AMyGameModebase::DisablePlayerInput()
+{
+    APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+    if (PC)
+    {
+        PC->SetInputMode(FInputModeUIOnly()); // Blocca interazione con il mondo
+        PC->bShowMouseCursor = true;          // Mostra comunque il cursore, se vuoi
+    }
+}
+
+void AMyGameModebase::EnablePlayerInput()
+{
+    APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+    if (PC)
+    {
+        PC->SetInputMode(FInputModeGameAndUI()); // Riabilita input sul mondo
+        PC->bShowMouseCursor = true;
+    }
 }

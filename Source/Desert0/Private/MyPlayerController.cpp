@@ -459,12 +459,15 @@ void AMyPlayerController::SetGameInputMode(bool bGameOnly)
     }
     else
     {
-        FInputModeUIOnly InputMode;
+        FInputModeGameAndUI InputMode;
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
+        InputMode.SetWidgetToFocus(nullptr); // 👈 evita che il focus rimanga su un widget
         SetInputMode(InputMode);
     }
+
     bShowMouseCursor = true;
 }
-
 
 void AMyPlayerController::OnPlayerMovementFinished()
 {
