@@ -103,16 +103,33 @@ void AMyAIController::RunTurn()
 
             if (!TargetCell)
             {
-                TargetCell = GridManager->GetCellAt(Closest->CurrentRow, Closest->CurrentColumn);
-                TArray<AGameCharacter*> Ignore;
-                for (AGameCharacter* Unit : GameMode->GetAIUnits())
+                // 🔄 Avvicinati il più possibile se non c’è una cella adiacente libera
+                int32 MinDistance = INT_MAX;
+
+                for (ACell_Actor* Cell : GridManager->GetAllCells())
                 {
-                    if (Unit && Unit != MyCharacter)
+                    if (Cell && !Cell->bIsOccupied && Cell->CellType != ECellType::Obstacle)
                     {
-                        Ignore.Add(Unit);
+                        int32 DistanceToEnemy = FMath::Abs(Cell->Row - Closest->CurrentRow) + FMath::Abs(Cell->Column - Closest->CurrentColumn);
+
+                        TArray<AGameCharacter*> Ignore;
+                        for (AGameCharacter* Unit : GameMode->GetAIUnits())
+                        {
+                            if (Unit && Unit != MyCharacter)
+                            {
+                                Ignore.Add(Unit);
+                            }
+                        }
+
+                        TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, Cell, Ignore);
+                        if (Path.Num() > 1 && DistanceToEnemy < MinDistance)
+                        {
+                            MinDistance = DistanceToEnemy;
+                            TargetCell = Cell;
+                            LastPath = Path;
+                        }
                     }
                 }
-                LastPath = GridManager->FindPathAStarAvoidingUnits(StartCell, TargetCell, Ignore);
             }
         }
         else
@@ -273,14 +290,25 @@ void AMyAIController::OnCharacterMovementFinished()
     // Pulisci HighlightedOriginCell
     MyCharacter->HighlightedOriginCell = nullptr;
 
-    // === Attacco dopo fuga ===
-    if (MyCharacter->IsSniper() && LastTarget && !MyCharacter->HasAttackedThisTurn)
+    // === Attacco dopo il movimento (sia Sniper che Brawler)
+    if (LastTarget && !MyCharacter->HasAttackedThisTurn)
     {
-        float Distance = FVector::Dist(MyCharacter->GetActorLocation(), LastTarget->GetActorLocation());
-        if (Distance <= MyCharacter->GetAttackRange())
+        int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - LastTarget->CurrentRow);
+        int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - LastTarget->CurrentColumn);
+
+        if (RowDiff + ColDiff <= MyCharacter->GetAttackRange())
         {
             MyCharacter->Attack(LastTarget);
             MyCharacter->HasAttackedThisTurn = true;
+
+            // 🔥 Log attacco dopo movimento
+            FString Prefix = TEXT("AI");
+            FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+            FString TargetCoord = LastTarget->CurrentCell ? ConvertToChessNotation(LastTarget->CurrentCell->Row, LastTarget->CurrentCell->Column) : TEXT("??");
+            int32 Damage = MyCharacter->GetLastDamageDealt();
+
+            FString LogEntry = FString::Printf(TEXT("%s: %s %s %d"), *Prefix, *UnitCode, *TargetCoord, Damage);
+            GameMode->AddMoveToLog(LogEntry);
         }
     }
 
