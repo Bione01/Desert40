@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "TurnState.h"
+#include "MoveLogWidget.h"
 #include "TurnImageWidget.h"
 #include "GameCharacter.h"
 #include "Blueprint/UserWidget.h"
@@ -78,6 +79,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Placement")
     void PlaceAIUnit();
 
+    UFUNCTION(BlueprintCallable)
+    void AddMoveToLog(const FString& MoveText);
+    
     // === AI TURN ===
     void ExecuteEnemyTurn();
 
@@ -112,6 +116,12 @@ public:
     
     UPROPERTY(BlueprintReadOnly)
     bool bPlayerStartsPlacement;
+    
+    UPROPERTY()
+    UMoveLogWidget* MoveLogWidget;
+
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UMoveLogWidget> MoveLogWidgetClass;
     
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<class UUserWidget> EndGameWidgetClass;

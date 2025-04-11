@@ -1,6 +1,7 @@
 #include "MyGameModebase.h"
 #include "CoinFlipActor.h"
 #include "Grid_Manager.h"
+#include "MoveLogWidget.h"
 #include "Engine/World.h"
 #include "MyPlayerController.h"
 #include "TurnImageWidget.h"
@@ -27,6 +28,11 @@ AMyGameModebase::AMyGameModebase()
 void AMyGameModebase::BeginPlay()
 {
     Super::BeginPlay();
+    
+    if (MoveLogWidgetClass)
+     {
+         MoveLogWidget = CreateWidget<UMoveLogWidget>(GetWorld(), MoveLogWidgetClass);
+     }
 
     if (GridManagerClass)
     {
@@ -42,7 +48,7 @@ void AMyGameModebase::BeginPlay()
     // ➕ LANCIO DELLA MONETA CON ANIMAZIONE
     if (CoinFlipActorClass)
     {
-        FVector CoinSpawnLocation = FVector(0.f, 0.f, 200.f); // posizione visiva sopra il centro
+        FVector CoinSpawnLocation = FVector(0.f, 0.f, 200.f);
         FRotator CoinRotation = FRotator::ZeroRotator;
 
         ACoinFlipActor* Coin = GetWorld()->SpawnActor<ACoinFlipActor>(CoinFlipActorClass, CoinSpawnLocation, CoinRotation);
@@ -50,21 +56,19 @@ void AMyGameModebase::BeginPlay()
         {
             DisablePlayerInput();
 
-            // 👇 Nasconde i bottoni di selezione personaggio
             AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
             if (PC)
             {
                 PC->HideCharacterSelectionWidget();
             }
 
-            bPlayerStartsPlacement = FMath::RandBool(); // decidi chi inizia
-            Coin->StartFlip(bPlayerStartsPlacement);    // avvia animazione
+            bPlayerStartsPlacement = FMath::RandBool();
+            Coin->StartFlip(bPlayerStartsPlacement);
 
-            return; // interrompi qui: la logica parte in OnFlipFinished()
+            return;
         }
     }
 
-    // 👇 Questa parte verrà eseguita solo se CoinFlipActorClass non è impostato
     bPlayerStartsPlacement = FMath::RandBool();
     UE_LOG(LogTemp, Log, TEXT("Lancio della moneta: %s inizia il posizionamento."), bPlayerStartsPlacement ? TEXT("Giocatore") : TEXT("IA"));
 
@@ -79,6 +83,19 @@ void AMyGameModebase::BeginPlay()
     }
 }
 
+void AMyGameModebase::AddMoveToLog(const FString& MoveText)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[LOG] AddMoveToLog chiamato con: %s"), *MoveText);
+
+    if (MoveLogWidget)
+    {
+        MoveLogWidget->AddMoveEntry(MoveText);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[LOG] MoveLogWidget è nullptr"));
+    }
+}
 
 void AMyGameModebase::StartPlacementPhase()
 {
@@ -337,21 +354,28 @@ void AMyGameModebase::StartBattlePhase()
     PlayerUnitsMoved = 0;
     AIUnitsMoved = 0;
 
+    // 🔥 Spegni tutti gli highlight
     if (GridManager)
+    {
+        for (ACell_Actor* Cell : GridManager->GetAllCells())
         {
-            for (ACell_Actor* Cell : GridManager->GetAllCells())
+            if (Cell)
             {
-                if (Cell)
-                {
-                    Cell->SetHighlight(false);
-                    Cell->SetAttackHighlight(false);
-                    Cell->SetOriginHighlight(false);
-                }
+                Cell->SetHighlight(false);
+                Cell->SetAttackHighlight(false);
+                Cell->SetOriginHighlight(false);
             }
         }
-    
+    }
+
     AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
-    if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA: nascondi i bottoni quando inizia la battaglia
+    if (PC) PC->HideCharacterSelectionWidget();
+
+    // ✅ Mostra il MoveLogWidget SOLO ORA
+    if (MoveLogWidget && !MoveLogWidget->IsInViewport())
+    {
+        MoveLogWidget->AddToViewport();
+    }
 
     if (bPlayerStartsPlacement)
     {

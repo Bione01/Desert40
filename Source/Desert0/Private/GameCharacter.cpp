@@ -255,6 +255,8 @@ void AGameCharacter::Attack(AGameCharacter* Target)
     if (!Target) return;
 
     int32 DamageDealt = FMath::RandRange(DamageMin, DamageMax);
+    LastDamageDealt = DamageDealt;
+
     UE_LOG(LogTemp, Log, TEXT("%s attacca %s infliggendo %d danni."), *GetName(), *Target->GetName(), DamageDealt);
 
     Target->ReceiveDamage(DamageDealt);
@@ -283,6 +285,19 @@ void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
             *GetName(), *Attacker->GetName(), CounterDamage);
 
         Attacker->ReceiveDamage(CounterDamage);
+        FString Prefix = TEXT("CP");
+        FString UnitCode = IsSniper() ? TEXT("S") : TEXT("B");
+        FString FromCoord = CurrentCell ? CurrentCell->CellName : TEXT("??");
+        FString ToCoord = Attacker->CurrentCell ? Attacker->CurrentCell->CellName : TEXT("??");
+
+        FString LogEntry = FString::Printf(TEXT("%s: %s %s -> %s"), *Prefix, *UnitCode, *FromCoord, *ToCoord);
+
+        AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+        /*if (MyGM)
+        {
+            MyGM->AddMoveToLog(LogEntry);
+        }*/
+
         Attacker->PlayCounterHitFlash(); // 🔥 Effetto visivo aggiunto
     }
 }

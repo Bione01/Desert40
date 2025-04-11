@@ -52,6 +52,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
     UStaticMeshComponent* MyMesh;
     
+    UPROPERTY(BlueprintReadOnly)
+    FString CellName;
+    
     UFUNCTION(BlueprintCallable)
     void SetHighlight(bool bHighlight);
     

@@ -130,4 +130,6 @@ protected:
     void ShowCharacterSelectionWidget();
 
     float ZOffset = 5.f;
+    
+    
 };

@@ -7,6 +7,13 @@
 #include "MyGameModebase.h"
 #include "Kismet/GameplayStatics.h"
 
+FString ConvertToChessNotation(int32 Row, int32 Col)
+{
+    TCHAR Letter = 'A' + Col;
+    int32 Number = Row + 1;
+    return FString::Printf(TEXT("%c%d"), Letter, Number);
+}
+
 void AMyAIController::BeginPlay()
 {
     Super::BeginPlay();
@@ -130,9 +137,26 @@ void AMyAIController::RunTurn()
     {
         MyCharacter->Attack(Closest);
         MyCharacter->HasAttackedThisTurn = true;
+
+        MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
+        // 🔥 LOG per HP
+        FString Prefix = TEXT("AI");
+        FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+        FString TargetCoord = Closest->CurrentCell ? ConvertToChessNotation(Closest->CurrentCell->Row, Closest->CurrentCell->Column) : TEXT("??");
+        int32 Damage = MyCharacter->GetLastDamageDealt();
+
+        FString LogEntry = FString::Printf(TEXT("%s: %s %s %d"), *Prefix, *UnitCode, *TargetCoord, Damage);
+
+        if (GameMode)
+        {
+            GameMode->AddMoveToLog(LogEntry);
+        }
+
         GameMode->NotifyAIUnitMoved();
         return;
     }
+
+
 
     // === Movimento
     if (!MyCharacter->HasMovedThisTurn && LastPath.Num() > 1)
@@ -159,6 +183,7 @@ void AMyAIController::RunTurn()
 
                     MyCharacter->OnMovementFinished.Clear();
                     MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+                    MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
                     MyCharacter->StartStepByStepMovement(SubPath);
                     MyCharacter->HasMovedThisTurn = true;
                     LastPath.RemoveAt(0, i);
@@ -193,6 +218,7 @@ void AMyAIController::RunTurn()
 
                 MyCharacter->OnMovementFinished.Clear();
                 MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+                MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
                 MyCharacter->StartStepByStepMovement(SubPath);
                 MyCharacter->HasMovedThisTurn = true;
                 LastPath.RemoveAt(0, Index);
@@ -234,6 +260,18 @@ void AMyAIController::OnCharacterMovementFinished()
     // Riallinea posizione fisica
     FVector FixedLocation = GameMode->GetCellLocationWithOffset(MyCharacter->CurrentCell);
     MyCharacter->SetActorLocation(FixedLocation);
+
+    // === Log movimento IA ===
+    FString Prefix = TEXT("AI");
+    FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+    FString FromCoord = MyCharacter->HighlightedOriginCell ? ConvertToChessNotation(MyCharacter->HighlightedOriginCell->Row, MyCharacter->HighlightedOriginCell->Column) : TEXT("??");
+    FString ToCoord = MyCharacter->CurrentCell ? ConvertToChessNotation(MyCharacter->CurrentCell->Row, MyCharacter->CurrentCell->Column) : TEXT("??");
+
+    FString MoveLogEntry = FString::Printf(TEXT("%s: %s %s -> %s"), *Prefix, *UnitCode, *FromCoord, *ToCoord);
+    GameMode->AddMoveToLog(MoveLogEntry);
+
+    // Pulisci HighlightedOriginCell
+    MyCharacter->HighlightedOriginCell = nullptr;
 
     // === Attacco dopo fuga ===
     if (MyCharacter->IsSniper() && LastTarget && !MyCharacter->HasAttackedThisTurn)
@@ -368,6 +406,7 @@ void AMyAIController::TryToEscapeAndAttack(AGameCharacter* Threat)
     {
         MyCharacter->OnMovementFinished.Clear();
         MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+        MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
         MyCharacter->StartStepByStepMovement(LastPath);
         MyCharacter->HasMovedThisTurn = true;
     }

@@ -92,6 +92,15 @@ void AGrid_Manager::CreateGrid()
                         {
                             NewCell->Row = Row;
                             NewCell->Column = Col;
+
+                            // 🔤 Dai un nome unico alla cella
+                            FString CellName = FString::Printf(TEXT("Cell_%d_%d"), Row, Col);
+                            NewCell->Rename(*CellName);
+#if WITH_EDITOR
+                            NewCell->SetActorLabel(CellName);
+#endif
+                            NewCell->CellName = CellName; // se hai aggiunto una variabile in Cell_Actor.h
+
                             GridCells.Add(NewCell);
                         }
                     }

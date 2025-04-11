@@ -58,6 +58,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     TSubclassOf<AActor> ObstacleBlueprint;
 
+    UPROPERTY(BlueprintReadOnly)
+    FString CellName;
+
     UFUNCTION(BlueprintCallable, Category = "Grid")
     void CreateGrid();
 

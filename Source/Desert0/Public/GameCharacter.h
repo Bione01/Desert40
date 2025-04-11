@@ -48,6 +48,11 @@ public:
     // Funzione chiamata all'inizio del gioco o quando l'attore viene spawnato
     virtual void BeginPlay() override;
     
+    UPROPERTY()
+    int32 LastDamageDealt = 0;
+
+    int32 GetLastDamageDealt() const { return LastDamageDealt; }
+    
     // ---- Statistiche dell'unità ----
     UPROPERTY()
     class ACell_Actor* CurrentCell;

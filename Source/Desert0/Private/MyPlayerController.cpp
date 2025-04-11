@@ -10,6 +10,13 @@
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 
+FString ConvertToChessNotation(int32 Row, int32 Col)
+{
+    TCHAR Letter = 'A' + Col;  // Col 0 -> A, 1 -> B, ...
+    int32 Number = Row + 1;    // Row 0 -> 1, 1 -> 2, ...
+    return FString::Printf(TEXT("%c%d"), Letter, Number);
+}
+
 void AMyPlayerController::BeginPlay()
 {
     Super::BeginPlay();
@@ -162,6 +169,20 @@ void AMyPlayerController::HandleLeftMouseClick()
                 if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
                 {
                     SelectedCharacter->Attack(ClickedEnemy);
+
+                    FString Prefix = TEXT("HP");
+                    FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+                    FString FromCoord = SelectedCharacter->CurrentCell ? ConvertToChessNotation(SelectedCharacter->CurrentCell->Row, SelectedCharacter->CurrentCell->Column) : TEXT("??");
+                    int32 DamageDealt = SelectedCharacter->GetLastDamageDealt();
+
+                    FString LogEntry = FString::Printf(TEXT("%s: %s %s %d"), *Prefix, *UnitCode, *FromCoord, DamageDealt);
+
+                    AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+                    if (MyGM)
+                    {
+                        MyGM->AddMoveToLog(LogEntry);
+                    }
+
                     SelectedCharacter->HasAttackedThisTurn = true;
                     SelectedCharacter->HasMovedThisTurn = true;
                     bIsWaitingForAttack = false;
@@ -186,6 +207,20 @@ void AMyPlayerController::HandleLeftMouseClick()
                 if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
                 {
                     SelectedCharacter->Attack(ClickedEnemy);
+
+                    FString Prefix = TEXT("HP");
+                    FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+                    FString FromCoord = SelectedCharacter->CurrentCell ? ConvertToChessNotation(SelectedCharacter->CurrentCell->Row, SelectedCharacter->CurrentCell->Column) : TEXT("??");
+                    int32 DamageDealt = SelectedCharacter->GetLastDamageDealt();
+
+                    FString LogEntry = FString::Printf(TEXT("%s: %s %s %d"), *Prefix, *UnitCode, *FromCoord, DamageDealt);
+
+                    AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+                    if (MyGM)
+                    {
+                        MyGM->AddMoveToLog(LogEntry);
+                    }
+
                     SelectedCharacter->HasAttackedThisTurn = true;
                     SelectedCharacter->HasMovedThisTurn = true;
                     bIsWaitingForAttack = false;
@@ -250,24 +285,16 @@ void AMyPlayerController::HandleLeftMouseClick()
             ACell_Actor* StartCell = GridManager->GetCellAt(SelectedCharacter->CurrentRow, SelectedCharacter->CurrentColumn);
             ACell_Actor* TargetCell = ClickedCell;
 
-            TArray<AGameCharacter*> UnitsToIgnore;
-            UnitsToIgnore.Add(SelectedCharacter);
+            TArray<AGameCharacter*> UnitsToIgnore = { SelectedCharacter };
             TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, TargetCell, UnitsToIgnore);
 
-            // === Se la destinazione è bloccata, cerca alternativa ===
             if (Path.Num() <= 1)
             {
                 UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Destinazione occupata, cerco alternativa..."));
                 ACell_Actor* AlternativeCell = nullptr;
                 int32 BestDistance = MAX_int32;
 
-                const TArray<FIntPoint> Directions = {
-                    FIntPoint(1, 0),
-                    FIntPoint(-1, 0),
-                    FIntPoint(0, 1),
-                    FIntPoint(0, -1)
-                };
-
+                const TArray<FIntPoint> Directions = { {1,0}, {-1,0}, {0,1}, {0,-1} };
                 for (const FIntPoint& Dir : Directions)
                 {
                     int32 NewRow = TargetCell->Row + Dir.X;
@@ -276,10 +303,7 @@ void AMyPlayerController::HandleLeftMouseClick()
 
                     if (Neighbor && !Neighbor->bIsOccupied && Neighbor->CellType != ECellType::Obstacle)
                     {
-                        TArray<AGameCharacter*> UnitsToIgnore;
-                        UnitsToIgnore.Add(SelectedCharacter);
                         TArray<ACell_Actor*> AltPath = GridManager->FindPathAStarAvoidingUnits(StartCell, Neighbor, UnitsToIgnore);
-
                         if (AltPath.Num() > 1)
                         {
                             int32 Distance = FMath::Abs(Neighbor->Row - StartCell->Row) + FMath::Abs(Neighbor->Column - StartCell->Column);
@@ -300,14 +324,17 @@ void AMyPlayerController::HandleLeftMouseClick()
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Percorso trovato verso alternativa (%d, %d)."), AlternativeCell->Row, AlternativeCell->Column);
+                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Alternativa trovata: (%d, %d)"), AlternativeCell->Row, AlternativeCell->Column);
                 }
             }
 
-            // === Avvia movimento ===
+            // ✅ Salva correttamente la cella di partenza
+            SelectedCharacter->HighlightedOriginCell = SelectedCharacter->CurrentCell;
+
             SelectedCharacter->OnMovementFinished.Clear();
             SelectedCharacter->OnMovementFinished.AddDynamic(this, &AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack);
             bIsMoving = true;
+
             SelectedCharacter->StartStepByStepMovement(Path);
         }
     }
@@ -575,15 +602,37 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
 
-    // ✅ Spegni SOLO la cella iniziale
+    SelectedCharacter->HasMovedThisTurn = true;
+
+    FString Prefix = TEXT("HP");
+    FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+
+    // ✅ Salva la coordinata PRIMA di azzerare
+    FString FromCoord = TEXT("??");
     if (IsValid(SelectedCharacter->HighlightedOriginCell))
     {
+        FromCoord = ConvertToChessNotation(
+            SelectedCharacter->HighlightedOriginCell->Row,
+            SelectedCharacter->HighlightedOriginCell->Column
+        );
+
         SelectedCharacter->HighlightedOriginCell->SetOriginHighlight(false);
         SelectedCharacter->HighlightedOriginCell = nullptr;
     }
 
-    SelectedCharacter->HasMovedThisTurn = true;
+    FString ToCoord = SelectedCharacter->CurrentCell ?
+        ConvertToChessNotation(SelectedCharacter->CurrentCell->Row, SelectedCharacter->CurrentCell->Column) :
+        TEXT("??");
 
+    FString LogEntry = FString::Printf(TEXT("%s: %s %s -> %s"), *Prefix, *UnitCode, *FromCoord, *ToCoord);
+
+    AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+    if (MyGM)
+    {
+        MyGM->AddMoveToLog(LogEntry);
+    }
+
+    // Check attacco possibile dopo il movimento
     bool bEnemyInRange = false;
     for (AGameCharacter* Enemy : MyGameMode->GetAIUnits())
     {
