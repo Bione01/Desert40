@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "TurnState.h"
+#include "HealthBarPanelWidget.h"
 #include "MoveLogWidget.h"
 #include "TurnImageWidget.h"
 #include "GameCharacter.h"
@@ -44,7 +45,6 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<UUserWidget> TurnImageWidgetClass;
 
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Phase")
     EGamePhase CurrentPhase;
 
@@ -82,6 +82,18 @@ public:
     UFUNCTION(BlueprintCallable)
     void AddMoveToLog(const FString& MoveText);
     
+    UPROPERTY()
+    UHealthBarPanelWidget* HealthBarPanelWidget;
+
+    UPROPERTY(EditAnywhere)
+    TSubclassOf<UHealthBarPanelWidget> HealthBarPanelWidgetClass;
+    
+    UPROPERTY()
+    AGameCharacter* LastSpawnedPlayerUnit;
+
+    UPROPERTY()
+    AGameCharacter* LastSpawnedAIUnit;
+
     // === AI TURN ===
     void ExecuteEnemyTurn();
 

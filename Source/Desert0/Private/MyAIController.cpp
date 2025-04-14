@@ -3,16 +3,10 @@
 #include "SniperCharacter.h"
 #include "BrawlerCharacter.h"
 #include "Grid_Manager.h"
+#include "UtilityFunctions.h"
 #include "Cell_Actor.h"
 #include "MyGameModebase.h"
 #include "Kismet/GameplayStatics.h"
-
-FString ConvertToChessNotation(int32 Row, int32 Col)
-{
-    TCHAR Letter = 'A' + Col;
-    int32 Number = Row + 1;
-    return FString::Printf(TEXT("%c%d"), Letter, Number);
-}
 
 void AMyAIController::BeginPlay()
 {

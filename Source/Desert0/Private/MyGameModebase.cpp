@@ -1,6 +1,7 @@
 #include "MyGameModebase.h"
 #include "CoinFlipActor.h"
 #include "Grid_Manager.h"
+#include "HealthBarPanelWidget.h"
 #include "MoveLogWidget.h"
 #include "Engine/World.h"
 #include "MyPlayerController.h"
@@ -33,6 +34,16 @@ void AMyGameModebase::BeginPlay()
      {
          MoveLogWidget = CreateWidget<UMoveLogWidget>(GetWorld(), MoveLogWidgetClass);
      }
+    
+    if (HealthBarPanelWidgetClass)
+    {
+        HealthBarPanelWidget = CreateWidget<UHealthBarPanelWidget>(GetWorld(), HealthBarPanelWidgetClass);
+        if (HealthBarPanelWidget)
+        {
+            HealthBarPanelWidget->AddToViewport(10);
+        }
+        UE_LOG(LogTemp, Warning, TEXT("📋 Widget della barra della salute: %s"), HealthBarPanelWidget ? TEXT("Creato") : TEXT("nullptr"));
+    }
 
     if (GridManagerClass)
     {
@@ -137,6 +148,14 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
 {
     PlayerUnitsPlaced++;
 
+    // 🔧 AGGIUNGI QUI LA BARRA DELLA SALUTE
+    if (HealthBarPanelWidget && PlayerUnits.Num() > 0)
+    {
+        AGameCharacter* LastPlayerUnit = PlayerUnits.Last();
+        UE_LOG(LogTemp, Warning, TEXT("📦 AddHealthBarForCharacter chiamata per: %s"), *LastPlayerUnit->GetName());
+        HealthBarPanelWidget->AddHealthBarForCharacter(LastPlayerUnit);
+    }
+
     if (PlayerUnitsPlaced >= MaxUnitsPerSide && AIUnitsPlaced >= MaxUnitsPerSide)
     {
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::StartBattlePhase);
@@ -151,14 +170,14 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
             DisablePlayerInput();
-            if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
+            if (PC) PC->HideCharacterSelectionWidget();
             GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
             EnablePlayerInput();
-            if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
+            if (PC) PC->SetCharacterSelectionVisibility(true);
         }
     }
     else
@@ -167,17 +186,18 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
             DisablePlayerInput();
-            if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
+            if (PC) PC->HideCharacterSelectionWidget();
             GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
         }
         else
         {
             if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
             EnablePlayerInput();
-            if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
+            if (PC) PC->SetCharacterSelectionVisibility(true);
         }
     }
 }
+
 
 
 void AMyGameModebase::NotifyAIUnitPlaced()
@@ -261,6 +281,8 @@ void AMyGameModebase::PlaceAIUnit_Internal()
     AGameCharacter* SpawnedAIUnit = GetWorld()->SpawnActor<AGameCharacter>(UnitToSpawn, SpawnLocation, SpawnRotation, SpawnParams);
     if (SpawnedAIUnit)
     {
+        SpawnedAIUnit->Health = SpawnedAIUnit->MaxHealth;
+        
         AMyAIController* AIController = GetWorld()->SpawnActor<AMyAIController>(AMyAIController::StaticClass());
         if (AIController)
         {
@@ -276,8 +298,13 @@ void AMyGameModebase::PlaceAIUnit_Internal()
 
         DestinationCell->SetOriginHighlight(true);
         SpawnedAIUnit->HighlightedOriginCell = DestinationCell;
-        // ✅ Aggiungiamo l'unità all'array
+        
         AIUnits.Add(SpawnedAIUnit);
+        
+        if (HealthBarPanelWidget)
+        {
+            HealthBarPanelWidget->AddHealthBarForCharacter(SpawnedAIUnit);
+        }
 
         UE_LOG(LogTemp, Log, TEXT("Unità IA spawnata: %s nella cella (%d, %d)"), *SpawnedAIUnit->GetName(), DestinationCell->Row, DestinationCell->Column);
         NotifyAIUnitPlaced();
@@ -332,8 +359,15 @@ void AMyGameModebase::PlacePlayerUnit()
     AGameCharacter* SpawnedPlayerUnit = GetWorld()->SpawnActor<AGameCharacter>(SelectedClass, SpawnLocation, SpawnRotation, SpawnParams);
     if (SpawnedPlayerUnit)
     {
+        SpawnedPlayerUnit->Health = SpawnedPlayerUnit->MaxHealth;
+        
         SpawnedPlayerUnit->MoveToCell(DestinationCell);
         SpawnedPlayerUnit->bIsAIControlled = false;
+        
+        if (HealthBarPanelWidget)
+        {
+            HealthBarPanelWidget->AddHealthBarForCharacter(SpawnedPlayerUnit);
+        }
 
         // ✅ Aggiungi all'array delle unità del player
         PlayerUnits.Add(SpawnedPlayerUnit);
@@ -681,7 +715,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
         EndGameWidget = CreateWidget<UUserWidget>(GetWorld(), EndGameWidgetClass);
         if (EndGameWidget)
         {
-            EndGameWidget->AddToViewport();
+            EndGameWidget->AddToViewport(20);
 
             // Mostra l'immagine corretta
             UImage* Image_YouWon = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_YouWon")));

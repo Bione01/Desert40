@@ -19,7 +19,7 @@ void UMoveLogWidget::AddMoveEntry(const FString& MoveText)
     // === FONT ===
     FSlateFontInfo FontInfo;
     FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Script/Engine.Font'/Game/Text_Mat/UI_Turns/Cinzel-Bold_Font.Cinzel-Bold_Font'")); // grassetto se disponibile
-    FontInfo.Size = 22; // leggermente più grande
+    FontInfo.Size = 16; // leggermente più grande
     NewText->SetFont(FontInfo);
 
     // === COLORE ===

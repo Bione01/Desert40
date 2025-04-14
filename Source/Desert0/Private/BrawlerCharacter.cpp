@@ -9,7 +9,8 @@ ABrawlerCharacter::ABrawlerCharacter()
 {
     MovementRange = 6;
     AttackRange = 1;
-    Health = 40;
+    MaxHealth = 40;
+    Health = MaxHealth;
     DamageMin = 1;
     DamageMax = 6;
     AttackType = EAttackType::Melee;

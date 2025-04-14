@@ -57,6 +57,12 @@ public:
     UPROPERTY()
     class ACell_Actor* CurrentCell;
     
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    int32 MaxHealth = 100;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    int32 Health = 100;
+    
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Turn State")
     bool HasMovedThisTurn = false;
     
@@ -70,10 +76,6 @@ public:
     // Range d'attacco (numero di celle)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit Stats")
     int32 AttackRange;
-    
-    // Punti vita dell'unità
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit Stats")
-    int32 Health;
     
     // Danno minimo e massimo
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Unit Stats")

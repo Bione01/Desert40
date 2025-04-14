@@ -1,6 +1,7 @@
 #include "MyPlayerController.h"
 #include "MyGameModebase.h"
 #include "Blueprint/UserWidget.h"
+#include "UtilityFunctions.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 #include "MySelectionWidget.h"
@@ -9,13 +10,6 @@
 #include "Grid_Manager.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
-
-FString ConvertToChessNotation(int32 Row, int32 Col)
-{
-    TCHAR Letter = 'A' + Col;  // Col 0 -> A, 1 -> B, ...
-    int32 Number = Row + 1;    // Row 0 -> 1, 1 -> 2, ...
-    return FString::Printf(TEXT("%c%d"), Letter, Number);
-}
 
 void AMyPlayerController::BeginPlay()
 {

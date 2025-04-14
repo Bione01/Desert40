@@ -10,7 +10,8 @@ ASniperCharacter::ASniperCharacter()
 {
     MovementRange = 3;
     AttackRange = 10;
-    Health = 20;
+    MaxHealth = 20;
+    Health = MaxHealth;
     DamageMin = 4;
     DamageMax = 8;
     AttackType = EAttackType::Distance;

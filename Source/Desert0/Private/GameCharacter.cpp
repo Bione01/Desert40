@@ -14,7 +14,8 @@ AGameCharacter::AGameCharacter()
     // Valori di default generici, che poi potrai modificare nelle classi derivate o via Blueprint
     MovementRange = 0;
     AttackRange = 0;
-    Health = 100;
+    MaxHealth = 100;
+    Health = MaxHealth;
     DamageMin = 0;
     DamageMax = 0;
     AttackType = EAttackType::Melee;
@@ -168,7 +169,13 @@ void AGameCharacter::UpdateSmoothMovement()
     {
         // Fine interpolazione
         FVector FinalLocation = EndLocation;
-        FinalLocation.Z = UnitSpawnZOffset; // Mantieni Z corretta
+        AMyGameModebase* GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+        if (CurrentCell)
+        {
+            FVector FixedLocation = GameMode->GetCellLocationWithOffset(CurrentCell);
+            SetActorLocation(FixedLocation);
+        }
+// Mantieni Z corretta
         SetActorLocation(FinalLocation);
 
         // Aggiorna logica SOLO a fine movimento
