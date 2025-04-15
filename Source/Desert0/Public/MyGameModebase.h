@@ -19,6 +19,13 @@ enum class EGamePhase : uint8
     GP_End       UMETA(DisplayName = "End")
 };
 
+UENUM(BlueprintType)
+enum class EGameDifficulty : uint8
+{
+    GD_Easy     UMETA(DisplayName = "Facile"),
+    GD_Hard     UMETA(DisplayName = "Difficile")
+};
+
 UCLASS()
 class DESERT0_API AMyGameModebase : public AGameModeBase
 {
@@ -98,6 +105,12 @@ public:
 
     UPROPERTY()
     AGameCharacter* LastSpawnedAIUnit;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game Mode")
+    EGameDifficulty GameDifficulty = EGameDifficulty::GD_Hard;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere)
+    bool bIsHardMode = true;
 
     // === AI TURN ===
     void ExecuteEnemyTurn();

@@ -1,5 +1,6 @@
 #include "MyAIController.h"
 #include "GameCharacter.h"
+#include "MyGameInstance.h"
 #include "SniperCharacter.h"
 #include "BrawlerCharacter.h"
 #include "Grid_Manager.h"
@@ -21,6 +22,13 @@ void AMyAIController::BeginPlay()
 
 void AMyAIController::RunTurn()
 {
+    UMyGameInstance* GI = Cast<UMyGameInstance>(GetGameInstance());
+    if (GI && !GI->bIsHardMode)
+    {
+        EasyRunTurn();
+        return;
+    }
+    
     AGameCharacter* MyCharacter = GetControlledCharacter();
     if (!MyCharacter || !GameMode || !GridManager)
     {
@@ -258,6 +266,87 @@ void AMyAIController::RunTurn()
     GameMode->NotifyAIUnitMoved();
 }
 
+void AMyAIController::EasyRunTurn()
+{
+    AGameCharacter* MyCharacter = GetControlledCharacter();
+    if (!MyCharacter || !GameMode || !GridManager)
+    {
+        return;
+    }
+
+    if (MyCharacter->HasMovedThisTurn && MyCharacter->HasAttackedThisTurn)
+    {
+        GameMode->NotifyAIUnitMoved();
+        return;
+    }
+
+    AGameCharacter* Target = FindClosestEnemy();
+    if (!Target)
+    {
+        GameMode->NotifyAIUnitMoved();
+        return;
+    }
+
+    int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - Target->CurrentRow);
+    int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Target->CurrentColumn);
+
+    // === Attacco diretto ===
+    if (RowDiff + ColDiff <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
+    {
+        MyCharacter->Attack(Target);
+        MyCharacter->HasAttackedThisTurn = true;
+
+        FString LogEntry = FString::Printf(TEXT("AI: %s %s %d"),
+            MyCharacter->IsSniper() ? TEXT("S") : TEXT("B"),
+            *ConvertToChessNotation(Target->CurrentCell->Row, Target->CurrentCell->Column),
+            MyCharacter->GetLastDamageDealt()
+        );
+
+        GameMode->AddMoveToLog(LogEntry);
+        GameMode->NotifyAIUnitMoved();
+        return;
+    }
+
+    // === Movimento verso il nemico ===
+    ACell_Actor* StartCell = GridManager->GetCellAt(MyCharacter->CurrentRow, MyCharacter->CurrentColumn);
+    ACell_Actor* TargetCell = GridManager->GetCellAt(Target->CurrentRow, Target->CurrentColumn);
+    if (!StartCell || !TargetCell)
+    {
+        GameMode->NotifyAIUnitMoved();
+        return;
+    }
+
+    TArray<AGameCharacter*> Ignore;
+    for (AGameCharacter* Unit : GameMode->GetAIUnits())
+    {
+        if (Unit && Unit != MyCharacter)
+        {
+            Ignore.Add(Unit);
+        }
+    }
+
+    TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, TargetCell, Ignore);
+    if (Path.Num() <= 1)
+    {
+        GameMode->NotifyAIUnitMoved();
+        return;
+    }
+
+    int32 MaxSteps = MyCharacter->GetMaxMovement();
+    int32 StepsToMove = FMath::Min(MaxSteps, Path.Num() - 1);
+
+    TArray<ACell_Actor*> SubPath;
+    for (int32 i = 0; i <= StepsToMove; ++i)
+    {
+        SubPath.Add(Path[i]);
+    }
+
+    MyCharacter->OnMovementFinished.Clear();
+    MyCharacter->OnMovementFinished.AddDynamic(this, &AMyAIController::OnCharacterMovementFinished);
+    MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
+    MyCharacter->StartStepByStepMovement(SubPath);
+    MyCharacter->HasMovedThisTurn = true;
+}
 
 void AMyAIController::OnCharacterMovementFinished()
 {

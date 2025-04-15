@@ -17,7 +17,8 @@ class DESERT0_API AMyAIController : public AAIController
 public:
     virtual void BeginPlay() override;
     void RunTurn();
-    void ClearCurrentPath(); // La funzione ClearCurrentPath è dichiarata una sola volta qui
+    void ClearCurrentPath();
+    void EasyRunTurn();
 
 private:
     AGameCharacter* FindClosestEnemy();
