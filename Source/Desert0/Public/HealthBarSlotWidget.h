@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/TextBlock.h"
 #include "Blueprint/UserWidget.h"
 #include "HealthBarSlotWidget.generated.h"
 
@@ -28,6 +29,12 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Icons")
     UTexture2D* AISniperIcon;
+    
+    UPROPERTY(meta = (BindWidget))
+    UTextBlock* HealthText;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Icons")
+    UTexture2D* DeadIcon;
 
     UPROPERTY(meta = (BindWidget))
     class UImage* IconImage;

@@ -120,6 +120,12 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "Sound")
     USoundBase* HitSound;
     
+    UPROPERTY(EditDefaultsOnly, Category = "Sound")
+    USoundBase* SpawnSound;
+    
+    UPROPERTY(EditDefaultsOnly, Category = "Sound")
+    USoundBase* DeathSound;
+    
     // GameCharacter.h
     UPROPERTY()
     ACell_Actor* HighlightedOriginCell = nullptr;

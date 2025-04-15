@@ -30,6 +30,11 @@ void AGameCharacter::BeginPlay()
     {
         OriginalMaterial = Mesh->GetMaterial(0);
     }
+    
+    if (!bIsAIControlled && SpawnSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, SpawnSound, GetActorLocation());
+    }
 }
 
 void AGameCharacter::Tick(float DeltaTime)
@@ -217,6 +222,8 @@ void AGameCharacter::UpdateSmoothMovement()
 void AGameCharacter::ReceiveDamage(int32 DamageAmount)
 {
     Health -= DamageAmount;
+    
+    Health = FMath::Max(0, Health);
 
     // Effetto visivo
     if (HitEffect)
@@ -240,6 +247,12 @@ void AGameCharacter::Die()
 {
     UE_LOG(LogTemp, Warning, TEXT("%s è stato sconfitto!"), *GetName());
 
+    //death sound effect
+    if (DeathSound)
+      {
+          UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
+      }
+    
     // Libera la cella
     if (CurrentCell)
     {
