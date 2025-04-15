@@ -1,4 +1,7 @@
 #include "Cell_Actor.h"
+#include "Kismet/GameplayStatics.h"
+#include "MyGameModebase.h"
+#include "TurnState.h"
 #include "Components/StaticMeshComponent.h"
 
 // Costruttore: imposta i valori di default
@@ -6,9 +9,14 @@ ACell_Actor::ACell_Actor()
 {
     PrimaryActorTick.bCanEverTick = true;
     
-    
     MyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MyMesh"));
     RootComponent = MyMesh;
+    
+    MyMesh->SetGenerateOverlapEvents(true);
+    MyMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+    MyMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    MyMesh->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
+    MyMesh->SetRenderCustomDepth(true);
     
     // Inizializzazione delle proprietà della cella
     Row = 0;
@@ -78,6 +86,50 @@ void ACell_Actor::SetOriginHighlight(bool bOn)
         else if (DefaultMaterial)
         {
             MyMesh->SetMaterial(0, DefaultMaterial);
+        }
+    }
+}
+
+void ACell_Actor::NotifyActorBeginCursorOver()
+{
+    Super::NotifyActorBeginCursorOver();
+
+    AMyGameModebase* GM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+    if (!GM) return;
+
+    // 🔒 Ignora se non è il turno del giocatore, se siamo fuori dalla fase di posizionamento o se l'input non è abilitato
+    if (GM->GetCurrentTurn() != ETurnState::TS_PlayerTurn ||
+        GM->GetCurrentPhase() != EGamePhase::GP_Placement ||
+        !GM->bIsPlayerInputEnabled)
+    {
+        return;
+    }
+
+    // 🚫 Ignora se la cella è occupata
+    if (bIsOccupied || OccupyingUnit != nullptr)
+    {
+        return;
+    }
+
+    // ✅ Solo se tutto è valido, illumina
+    SetHighlight(true);
+}
+
+void ACell_Actor::NotifyActorEndCursorOver()
+{
+    Super::NotifyActorEndCursorOver();
+
+    AMyGameModebase* GM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+    if (!GM) return;
+
+    if (GM->GetCurrentTurn() == ETurnState::TS_PlayerTurn &&
+        GM->GetCurrentPhase() == EGamePhase::GP_Placement &&
+        GM->bIsPlayerInputEnabled)
+    {
+        // ❗ Spegni solo se era stato illuminato con HighlightMaterial (hover), non Origin
+        if (MyMesh && MyMesh->GetMaterial(0) == HighlightMaterial)
+        {
+            SetHighlight(false);
         }
     }
 }

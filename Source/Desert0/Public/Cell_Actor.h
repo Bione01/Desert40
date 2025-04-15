@@ -26,6 +26,8 @@ protected:
 public:
     // Chiamato ad ogni frame
     virtual void Tick(float DeltaTime) override;
+    virtual void NotifyActorBeginCursorOver() override;
+    virtual void NotifyActorEndCursorOver() override;
 
     // Coordinate della cella nella griglia
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")

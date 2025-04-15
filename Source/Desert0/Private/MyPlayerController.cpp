@@ -24,6 +24,8 @@ void AMyPlayerController::BeginPlay()
     bIsBrawlerPlaced = false;
     SelectedCharacter = nullptr;
     bIsMoving = false;
+    
+    this->bEnableMouseOverEvents = true;
 
     // Trova Grid Manager
     for (TActorIterator<AGrid_Manager> It(GetWorld()); It; ++It)
@@ -718,6 +720,9 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
         SpawnedUnit->CurrentRow = ClickedCell->Row;
         SpawnedUnit->CurrentColumn = ClickedCell->Column;
         SpawnedUnit->CurrentCell = ClickedCell;
+        
+        ClickedCell->bIsOccupied = true;
+        ClickedCell->OccupyingUnit = SpawnedUnit;
         
         ClickedCell->SetOriginHighlight(true);
         SpawnedUnit->HighlightedOriginCell = ClickedCell;

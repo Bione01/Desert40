@@ -364,6 +364,9 @@ void AMyGameModebase::PlacePlayerUnit()
         SpawnedPlayerUnit->MoveToCell(DestinationCell);
         SpawnedPlayerUnit->bIsAIControlled = false;
         
+        SpawnedPlayerUnit->HighlightedOriginCell = DestinationCell;
+        DestinationCell->SetOriginHighlight(true);
+        
         if (HealthBarPanelWidget)
         {
             HealthBarPanelWidget->AddHealthBarForCharacter(SpawnedPlayerUnit);
@@ -774,6 +777,8 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
 
 void AMyGameModebase::DisablePlayerInput()
 {
+    bIsPlayerInputEnabled = false;
+    
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (PC)
     {
@@ -784,6 +789,8 @@ void AMyGameModebase::DisablePlayerInput()
 
 void AMyGameModebase::EnablePlayerInput()
 {
+    bIsPlayerInputEnabled = true;
+    
     APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
     if (PC)
     {

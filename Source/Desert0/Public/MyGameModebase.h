@@ -33,6 +33,11 @@ public:
     
     void DisablePlayerInput();
     void EnablePlayerInput();
+    
+    ETurnState GetCurrentTurn() const { return CurrentTurn; }
+    EGamePhase GetCurrentPhase() const { return CurrentPhase; }
+
+    bool bIsPlayerInputEnabled = false;
 
     // === FASI DI GIOCO ===
     
