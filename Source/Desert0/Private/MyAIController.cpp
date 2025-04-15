@@ -280,7 +280,28 @@ void AMyAIController::EasyRunTurn()
         return;
     }
 
-    AGameCharacter* Target = FindClosestEnemy();
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundActors);
+
+    AGameCharacter* Target = nullptr;
+    int32 MinDistance = INT_MAX;
+
+    for (AActor* Actor : FoundActors)
+    {
+        AGameCharacter* OtherChar = Cast<AGameCharacter>(Actor);
+        if (OtherChar && !OtherChar->bIsAIControlled)
+        {
+            int32 Distance = FMath::Abs(MyCharacter->CurrentRow - OtherChar->CurrentRow)
+                           + FMath::Abs(MyCharacter->CurrentColumn - OtherChar->CurrentColumn);
+
+            if (Distance < MinDistance)
+            {
+                MinDistance = Distance;
+                Target = OtherChar;
+            }
+        }
+    }
+
     if (!Target)
     {
         GameMode->NotifyAIUnitMoved();
@@ -289,9 +310,10 @@ void AMyAIController::EasyRunTurn()
 
     int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - Target->CurrentRow);
     int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Target->CurrentColumn);
+    int32 Distance = RowDiff + ColDiff;
 
-    // === Attacco diretto ===
-    if (RowDiff + ColDiff <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
+    // === Attacco diretto senza movimento (es: Sniper in range)
+    if (Distance <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
     {
         MyCharacter->Attack(Target);
         MyCharacter->HasAttackedThisTurn = true;
@@ -307,7 +329,7 @@ void AMyAIController::EasyRunTurn()
         return;
     }
 
-    // === Movimento verso il nemico ===
+    // === Movimento verso il nemico
     ACell_Actor* StartCell = GridManager->GetCellAt(MyCharacter->CurrentRow, MyCharacter->CurrentColumn);
     ACell_Actor* TargetCell = GridManager->GetCellAt(Target->CurrentRow, Target->CurrentColumn);
     if (!StartCell || !TargetCell)
@@ -346,6 +368,8 @@ void AMyAIController::EasyRunTurn()
     MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
     MyCharacter->StartStepByStepMovement(SubPath);
     MyCharacter->HasMovedThisTurn = true;
+
+    LastTarget = Target;
 }
 
 void AMyAIController::OnCharacterMovementFinished()
@@ -475,23 +499,29 @@ AGameCharacter* AMyAIController::GetControlledCharacter() const
 void AMyAIController::TryToEscapeAndAttack(AGameCharacter* Threat)
 {
     AGameCharacter* MyCharacter = GetControlledCharacter();
-    if (!MyCharacter || !Threat) return;
+    if (!MyCharacter || !GameMode || !GridManager) return;
 
     ACell_Actor* StartCell = GridManager->GetCellAt(MyCharacter->CurrentRow, MyCharacter->CurrentColumn);
 
     ACell_Actor* BestEscapeCell = nullptr;
-    int32 MaxDistance = -1;
+    int32 MaxCombinedDistance = -1;
 
     const TArray<ACell_Actor*> AllCells = GridManager->GetAllCells();
+    const TArray<AGameCharacter*> PlayerUnits = GameMode->GetPlayerUnits();
+
     for (ACell_Actor* Cell : AllCells)
     {
         if (Cell && !Cell->bIsOccupied && Cell->CellType != ECellType::Obstacle)
         {
-            int32 RowDiff = FMath::Abs(Cell->Row - Threat->CurrentRow);
-            int32 ColDiff = FMath::Abs(Cell->Column - Threat->CurrentColumn);
-            int32 Distance = RowDiff + ColDiff;
+            int32 CombinedDistance = 0;
+            for (AGameCharacter* PlayerUnit : PlayerUnits)
+            {
+                int32 RowDiff = FMath::Abs(Cell->Row - PlayerUnit->CurrentRow);
+                int32 ColDiff = FMath::Abs(Cell->Column - PlayerUnit->CurrentColumn);
+                CombinedDistance += RowDiff + ColDiff;
+            }
 
-            if (Distance > MaxDistance)
+            if (CombinedDistance > MaxCombinedDistance)
             {
                 TArray<AGameCharacter*> Ignore;
                 for (AGameCharacter* Unit : GameMode->GetAIUnits())
@@ -505,7 +535,7 @@ void AMyAIController::TryToEscapeAndAttack(AGameCharacter* Threat)
                 TArray<ACell_Actor*> Path = GridManager->FindPathAStarAvoidingUnits(StartCell, Cell, Ignore);
                 if (Path.Num() > 1 && Path.Num() - 1 <= MyCharacter->GetMaxMovement())
                 {
-                    MaxDistance = Distance;
+                    MaxCombinedDistance = CombinedDistance;
                     BestEscapeCell = Cell;
                     LastPath = Path;
                 }
@@ -520,13 +550,26 @@ void AMyAIController::TryToEscapeAndAttack(AGameCharacter* Threat)
         MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
         MyCharacter->StartStepByStepMovement(LastPath);
         MyCharacter->HasMovedThisTurn = true;
+
+        LastTarget = Threat;
+        return;
     }
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("[IA] Sniper non ha trovato cella di fuga, attacca."));
-        // Se non trova celle di fuga, attacca subito
+
         MyCharacter->Attack(Threat);
         MyCharacter->HasAttackedThisTurn = true;
+
+        // 🔥 Log
+        FString Prefix = TEXT("AI");
+        FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+        FString TargetCoord = Threat->CurrentCell ? ConvertToChessNotation(Threat->CurrentCell->Row, Threat->CurrentCell->Column) : TEXT("??");
+        int32 Damage = MyCharacter->GetLastDamageDealt();
+
+        FString LogEntry = FString::Printf(TEXT("%s: %s %s %d"), *Prefix, *UnitCode, *TargetCoord, Damage);
+        GameMode->AddMoveToLog(LogEntry);
+
         GameMode->NotifyAIUnitMoved();
     }
 }
