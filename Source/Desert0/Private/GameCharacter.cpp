@@ -172,18 +172,9 @@ void AGameCharacter::UpdateSmoothMovement()
 {
     if (CurrentLerpTime >= MaxLerpTime)
     {
-        // Fine interpolazione
-        FVector FinalLocation = EndLocation;
-        AMyGameModebase* GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
-        if (CurrentCell)
-        {
-            FVector FixedLocation = GameMode->GetCellLocationWithOffset(CurrentCell);
-            SetActorLocation(FixedLocation);
-        }
-// Mantieni Z corretta
-        SetActorLocation(FinalLocation);
+        GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
 
-        // Aggiorna logica SOLO a fine movimento
+        // Aggiorna logica del personaggio PRIMA di posizionarlo
         if (StepPath.Num() > 0)
         {
             ACell_Actor* NextCell = StepPath[0];
@@ -195,7 +186,7 @@ void AGameCharacter::UpdateSmoothMovement()
                 CurrentCell->OccupyingUnit = nullptr;
             }
 
-            // Aggiorna stato logico
+            // Aggiorna la cella attuale
             CurrentCell = NextCell;
             CurrentRow = NextCell->Row;
             CurrentColumn = NextCell->Column;
@@ -203,20 +194,27 @@ void AGameCharacter::UpdateSmoothMovement()
             NextCell->OccupyingUnit = this;
         }
 
-        StepPath.RemoveAt(0);
-        GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
+        // Ora che la logica è aggiornata, centra visivamente il personaggio
+        AMyGameModebase* GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
+        if (GameMode && CurrentCell)
+        {
+            FVector FixedLocation = GameMode->GetCellLocationWithOffset(CurrentCell);
+            SetActorLocation(FixedLocation);
+        }
 
-        // Prossimo step
+        StepPath.RemoveAt(0);
+
+        // Passa alla prossima cella
         MoveOneStep();
         return;
     }
 
+    // Interpolazione durante il movimento
     CurrentLerpTime += 0.01f;
     float Alpha = FMath::Clamp(CurrentLerpTime / MaxLerpTime, 0.f, 1.f);
     FVector NewLocation = FMath::Lerp(StartLocation, EndLocation, Alpha);
     SetActorLocation(NewLocation);
 }
-
 
 
 void AGameCharacter::ReceiveDamage(int32 DamageAmount)
@@ -313,10 +311,6 @@ void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
         FString LogEntry = FString::Printf(TEXT("%s: %s %s -> %s"), *Prefix, *UnitCode, *FromCoord, *ToCoord);
 
         AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
-        /*if (MyGM)
-        {
-            MyGM->AddMoveToLog(LogEntry);
-        }*/
 
         Attacker->PlayCounterHitFlash(); // 🔥 Effetto visivo aggiunto
     }

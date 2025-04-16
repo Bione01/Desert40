@@ -741,6 +741,14 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
                 PC->SetShowMouseCursor(true);
             }
         }
+        if (bPlayerWon && VictorySound)
+        {
+            UGameplayStatics::PlaySound2D(this, VictorySound);
+        }
+        else if (!bPlayerWon && DefeatSound)
+        {
+            UGameplayStatics::PlaySound2D(this, DefeatSound);
+        }
     }
     
     if (EndGameWidgetClass)

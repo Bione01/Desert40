@@ -155,6 +155,12 @@ public:
     
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<class UUserWidget> EndGameWidgetClass;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+    USoundBase* VictorySound;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+    USoundBase* DefeatSound;
 
     UPROPERTY()
     UUserWidget* EndGameWidget;
