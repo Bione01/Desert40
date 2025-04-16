@@ -27,7 +27,7 @@ void AMyPlayerController::BeginPlay()
     
     this->bEnableMouseOverEvents = true;
 
-    // Trova Grid Manager
+    // find gridmanager
     for (TActorIterator<AGrid_Manager> It(GetWorld()); It; ++It)
     {
         GridManager = *It;
@@ -41,7 +41,7 @@ void AMyPlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
     InputComponent->BindAction("LeftClick", IE_Pressed, this, &AMyPlayerController::HandleLeftMouseClick);
-    UE_LOG(LogTemp, Warning, TEXT("[INPUT] Modalità GameOnly attivata"));
+    UE_LOG(LogTemp, Warning, TEXT("[INPUT] gamemode only activated"));
 }
 
 void AMyPlayerController::OnCharacterSelected(FName CharacterType)
@@ -54,7 +54,6 @@ void AMyPlayerController::OnCharacterSelected(FName CharacterType)
         CharacterSelectionWidget = nullptr;
     }
 
-    // Imposta input su GameOnly
     SetGameInputMode(true);
 }
 
@@ -73,9 +72,8 @@ void AMyPlayerController::ShowCharacterSelectionWidget()
             }
 
             CharacterSelectionWidget->AddToViewport();
-            CharacterSelectionWidget->SetVisibility(ESlateVisibility::Hidden); // 👈 nascondi inizialmente
+            CharacterSelectionWidget->SetVisibility(ESlateVisibility::Hidden); // hide
 
-            // Imposta input su UIOnly se vuoi (opzionale)
             SetGameInputMode(false);
         }
     }
@@ -154,7 +152,7 @@ void AMyPlayerController::HandleLeftMouseClick()
 
     if (MyGameMode->CurrentPhase == EGamePhase::GP_Battle && MyGameMode->CurrentTurn == ETurnState::TS_PlayerTurn)
     {
-        // === Attacco in attesa dopo movimento ===
+        //attack after movement
         if (bIsWaitingForAttack && SelectedCharacter && !bIsMoving)
         {
             AGameCharacter* ClickedEnemy = GetClickedUnit();
@@ -188,12 +186,12 @@ void AMyPlayerController::HandleLeftMouseClick()
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[BATTLE] Nemico fuori range."));
+                    UE_LOG(LogTemp, Warning, TEXT("[BATTLE] enemy out of range."));
                 }
             }
         }
 
-        // === Attacco diretto a inizio turno ===
+        // direct attack
         if (!bIsMoving && SelectedCharacter && !SelectedCharacter->HasMovedThisTurn && !SelectedCharacter->HasAttackedThisTurn)
         {
             AGameCharacter* ClickedEnemy = GetClickedUnit();
@@ -228,7 +226,7 @@ void AMyPlayerController::HandleLeftMouseClick()
             }
         }
 
-        // === Click su PlayerUnit ===
+        // click on playerunit
         AGameCharacter* ClickedUnit = GetClickedUnit();
         if (ClickedUnit && MyGameMode->GetPlayerUnits().Contains(ClickedUnit))
         {
@@ -271,12 +269,12 @@ void AMyPlayerController::HandleLeftMouseClick()
             }
             else
             {
-                UE_LOG(LogTemp, Warning, TEXT("[BATTLE] Unità già mossa."));
+                UE_LOG(LogTemp, Warning, TEXT("[BATTLE] Unit already moved."));
                 return;
             }
         }
 
-        // === Movimento su cella evidenziata ===
+        // movement on highlight cell
         ACell_Actor* ClickedCell = GetClickedCell();
         if (ClickedCell && ClickedCell->bIsHighlighted && SelectedCharacter)
         {
@@ -288,7 +286,7 @@ void AMyPlayerController::HandleLeftMouseClick()
 
             if (Path.Num() <= 1)
             {
-                UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Destinazione occupata, cerco alternativa..."));
+                UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] destination occupy, find another..."));
                 ACell_Actor* AlternativeCell = nullptr;
                 int32 BestDistance = MAX_int32;
 
@@ -317,16 +315,16 @@ void AMyPlayerController::HandleLeftMouseClick()
 
                 if (!AlternativeCell)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Nessuna cella alternativa trovata."));
+                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] no alternative find."));
                     return;
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Alternativa trovata: (%d, %d)"), AlternativeCell->Row, AlternativeCell->Column);
+                    UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] alternative find: (%d, %d)"), AlternativeCell->Row, AlternativeCell->Column);
                 }
             }
 
-            // ✅ Salva correttamente la cella di partenza
+            // save start cell
             SelectedCharacter->HighlightedOriginCell = SelectedCharacter->CurrentCell;
 
             SelectedCharacter->OnMovementFinished.Clear();
@@ -380,7 +378,7 @@ void AMyPlayerController::HighlightReachableCells(AGameCharacter* CharacterToHig
 
         ACell_Actor* CurrentCell = *FoundCell;
 
-        // Blocca propagazione su ostacoli e qualsiasi unità (AI o Player), tranne la selezionata
+        // block on obstacle and units
         AGameCharacter* OccupyingCharacter = Cast<AGameCharacter>(CurrentCell->OccupyingUnit);
         if (CurrentCell->CellType == ECellType::Obstacle ||
             (CurrentCell->bIsOccupied && OccupyingCharacter && OccupyingCharacter != SelectedCharacter))
@@ -389,7 +387,6 @@ void AMyPlayerController::HighlightReachableCells(AGameCharacter* CharacterToHig
         }
 
 
-        // Evidenzia solo se non è la cella di partenza
         if (Distance > 0)
         {
             CurrentCell->SetHighlight(true);
@@ -397,7 +394,6 @@ void AMyPlayerController::HighlightReachableCells(AGameCharacter* CharacterToHig
 
         }
 
-        // Propagazione
         const TArray<FIntPoint> Directions = {
             FIntPoint(1, 0),
             FIntPoint(-1, 0),
@@ -425,7 +421,7 @@ void AMyPlayerController::RefreshCellOccupancy()
 {
     if (!GridManager) return;
 
-    // Reset occupazione
+    // reset
     TArray<ACell_Actor*> AllCells = GridManager->GetAllCells();
     for (ACell_Actor* Cell : AllCells)
     {
@@ -439,7 +435,7 @@ void AMyPlayerController::RefreshCellOccupancy()
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
 
-    // Player Units
+    // player units
     for (AGameCharacter* Unit : MyGameMode->GetPlayerUnits())
     {
         if (Unit && Unit->CurrentCell)
@@ -449,7 +445,7 @@ void AMyPlayerController::RefreshCellOccupancy()
         }
     }
 
-    // AI Units
+    // AI units
     for (AGameCharacter* Unit : MyGameMode->GetAIUnits())
     {
         if (Unit && Unit->CurrentCell)
@@ -489,7 +485,7 @@ void AMyPlayerController::SetGameInputMode(bool bGameOnly)
         FInputModeGameAndUI InputMode;
         InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
         InputMode.SetHideCursorDuringCapture(false);
-        InputMode.SetWidgetToFocus(nullptr); // 👈 evita che il focus rimanga su un widget
+        InputMode.SetWidgetToFocus(nullptr); // no widget focus
         SetInputMode(InputMode);
     }
 
@@ -531,11 +527,11 @@ void AMyPlayerController::OnPlayerMovementFinished()
     
     if (bAttacked)
     {
-        UE_LOG(LogTemp, Log, TEXT("Attacco eseguito dopo il movimento."));
+        UE_LOG(LogTemp, Log, TEXT("Attack after movement."));
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("Nessun nemico in range dopo il movimento."));
+        UE_LOG(LogTemp, Log, TEXT("no enemy in range after movement."));
     }
 
     CheckEndOfPlayerUnitTurn();
@@ -548,7 +544,7 @@ void AMyPlayerController::CheckEndOfPlayerUnitTurn()
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (!MyGameMode) return;
 
-    // Se l'unità ha mosso e attaccato, il turno è finito
+    // endturn
     if (SelectedCharacter->HasMovedThisTurn && SelectedCharacter->HasAttackedThisTurn)
     {
         if (IsValid(SelectedCharacter->HighlightedOriginCell))
@@ -562,19 +558,16 @@ void AMyPlayerController::CheckEndOfPlayerUnitTurn()
         return;
     }
 
-
-    // Se l'unità non ha ancora mosso
     if (!SelectedCharacter->HasMovedThisTurn)
     {
         return;
     }
 
-    // Se l'unità non ha attaccato
     if (!SelectedCharacter->HasAttackedThisTurn)
     {
         if (!bIsWaitingForAttack)
         {
-            // 🔥 SPEGNI LUCE ORIGINE
+            // switch off origin
             if (IsValid(SelectedCharacter->HighlightedOriginCell))
             {
                 SelectedCharacter->HighlightedOriginCell->SetOriginHighlight(false);
@@ -605,7 +598,7 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
     FString Prefix = TEXT("HP");
     FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
 
-    // ✅ Salva la coordinata PRIMA di azzerare
+    // save coordinate
     FString FromCoord = TEXT("??");
     if (IsValid(SelectedCharacter->HighlightedOriginCell))
     {
@@ -630,7 +623,7 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
         MyGM->AddMoveToLog(LogEntry);
     }
 
-    // Check attacco possibile dopo il movimento
+    // check attack after movement
     bool bEnemyInRange = false;
     for (AGameCharacter* Enemy : MyGameMode->GetAIUnits())
     {
@@ -650,7 +643,7 @@ void AMyPlayerController::OnPlayerMovementFinishedAndCheckAttack()
 
     if (bEnemyInRange)
     {
-        UE_LOG(LogTemp, Log, TEXT("[BATTLE] Nemico in range, attendendo click per attacco."));
+        UE_LOG(LogTemp, Log, TEXT("[BATTLE] enemy in range, waitning click."));
         bIsWaitingForAttack = true;
     }
     else
@@ -664,7 +657,7 @@ void AMyPlayerController::SkipCurrentAttack()
 {
     if (SelectedCharacter && SelectedCharacter->HasMovedThisTurn && !SelectedCharacter->HasAttackedThisTurn)
     {
-        UE_LOG(LogTemp, Log, TEXT("[BATTLE] Attacco skippato su %s"), *SelectedCharacter->GetName());
+        UE_LOG(LogTemp, Log, TEXT("[BATTLE] attack skipped on %s"), *SelectedCharacter->GetName());
         SelectedCharacter->HasAttackedThisTurn = true;
         bIsWaitingForAttack = false;
 
@@ -676,7 +669,7 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
 {
     if (SelectedCharacterType == NAME_None)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[PLACEMENT] Seleziona un personaggio prima di cliccare una cella."));
+        UE_LOG(LogTemp, Warning, TEXT("[PLACEMENT] select unit before click on cell."));
         return;
     }
 
@@ -687,7 +680,7 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
 
     if (ClickedCell->CellType == ECellType::Obstacle || ClickedCell->bIsOccupied)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[PLACEMENT] Cella (%d, %d) non valida."), ClickedCell->Row, ClickedCell->Column);
+        UE_LOG(LogTemp, Warning, TEXT("[PLACEMENT] Cell (%d, %d) not valid."), ClickedCell->Row, ClickedCell->Column);
         return;
     }
 
@@ -732,7 +725,7 @@ void AMyPlayerController::HandlePlacementClick(AMyGameModebase* MyGameMode)
         MyGameMode->AddPlayerUnit(SpawnedUnit);
         MyGameMode->NotifyPlayerUnitPlaced();
 
-        UE_LOG(LogTemp, Warning, TEXT("[PLACEMENT] Unità %s posizionata nella cella (%d, %d)"), *SpawnedUnit->GetName(), ClickedCell->Row, ClickedCell->Column);
+        UE_LOG(LogTemp, Warning, TEXT("[PLACEMENT] unit %s place in cell (%d, %d)"), *SpawnedUnit->GetName(), ClickedCell->Row, ClickedCell->Column);
 
         SelectedCharacterType = NAME_None;
 
@@ -759,7 +752,6 @@ void AMyPlayerController::HighlightEnemyCellsInRange()
             if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
             {
                 Enemy->CurrentCell->SetAttackHighlight(true);
-// 🔥 Qui evidenzi in rosso
             }
         }
     }
@@ -791,8 +783,6 @@ void AMyPlayerController::DeselectCurrentUnit()
 {
     if (SelectedCharacter)
     {
-        // 🔥 NON toccare la luce d'origine
-        // Spegni solo le celle evidenziate per il movimento e attacco
         for (ACell_Actor* Cell : GridManager->GetAllCells())
         {
             if (Cell)
@@ -804,6 +794,6 @@ void AMyPlayerController::DeselectCurrentUnit()
 
         UnPossess();
         SelectedCharacter = nullptr;
-        UE_LOG(LogTemp, Log, TEXT("Unità deselezionata."));
+        UE_LOG(LogTemp, Log, TEXT("unit deselct."));
     }
 }

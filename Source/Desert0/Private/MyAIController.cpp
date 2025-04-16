@@ -105,7 +105,7 @@ void AMyAIController::RunTurn()
 
             if (!TargetCell)
             {
-                // 🔄 Avvicinati il più possibile se non c’è una cella adiacente libera
+                // get closer
                 int32 MinDistance = INT_MAX;
 
                 for (ACell_Actor* Cell : GridManager->GetAllCells())
@@ -149,7 +149,6 @@ void AMyAIController::RunTurn()
         }
     }
 
-    // === Se è già in range d'attacco all'inizio
     int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - Closest->CurrentRow);
     int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Closest->CurrentColumn);
     if (RowDiff + ColDiff <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
@@ -158,7 +157,7 @@ void AMyAIController::RunTurn()
         MyCharacter->HasAttackedThisTurn = true;
 
         MyCharacter->HighlightedOriginCell = MyCharacter->CurrentCell;
-        // 🔥 LOG per HP
+        // hp log
         FString Prefix = TEXT("AI");
         FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
         FString TargetCoord = Closest->CurrentCell ? ConvertToChessNotation(Closest->CurrentCell->Row, Closest->CurrentCell->Column) : TEXT("??");
@@ -177,7 +176,7 @@ void AMyAIController::RunTurn()
 
 
 
-    // === Movimento
+    // movement
     if (!MyCharacter->HasMovedThisTurn && LastPath.Num() > 1)
     {
         int32 MaxSteps = MyCharacter->GetMaxMovement();
@@ -250,7 +249,7 @@ void AMyAIController::RunTurn()
         }
     }
 
-    // === Se non può muoversi e non ha attaccato
+    // if can't move and attack
     if (!MyCharacter->HasMovedThisTurn && LastPath.Num() <= 1 && !MyCharacter->HasAttackedThisTurn)
     {
         RowDiff = FMath::Abs(MyCharacter->CurrentRow - Closest->CurrentRow);
@@ -312,7 +311,7 @@ void AMyAIController::EasyRunTurn()
     int32 ColDiff = FMath::Abs(MyCharacter->CurrentColumn - Target->CurrentColumn);
     int32 Distance = RowDiff + ColDiff;
 
-    // === Attacco diretto senza movimento (es: Sniper in range)
+    // direct attack
     if (Distance <= MyCharacter->GetAttackRange() && !MyCharacter->HasAttackedThisTurn)
     {
         MyCharacter->Attack(Target);
@@ -329,7 +328,7 @@ void AMyAIController::EasyRunTurn()
         return;
     }
 
-    // === Movimento verso il nemico
+    // movement toward enemy
     ACell_Actor* StartCell = GridManager->GetCellAt(MyCharacter->CurrentRow, MyCharacter->CurrentColumn);
     ACell_Actor* TargetCell = GridManager->GetCellAt(Target->CurrentRow, Target->CurrentColumn);
     if (!StartCell || !TargetCell)
@@ -377,15 +376,14 @@ void AMyAIController::OnCharacterMovementFinished()
     AGameCharacter* MyCharacter = GetControlledCharacter();
     if (!MyCharacter || !GameMode) return;
 
-    // Aggiorna la posizione logica SEMPRE
+    // update position
     MyCharacter->CurrentRow = MyCharacter->CurrentCell->Row;
     MyCharacter->CurrentColumn = MyCharacter->CurrentCell->Column;
 
-    // Riallinea posizione fisica
     FVector FixedLocation = GameMode->GetCellLocationWithOffset(MyCharacter->CurrentCell);
     MyCharacter->SetActorLocation(FixedLocation);
 
-    // === Log movimento IA ===
+    // ia movement log
     FString Prefix = TEXT("AI");
     FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
     FString FromCoord = MyCharacter->HighlightedOriginCell ? ConvertToChessNotation(MyCharacter->HighlightedOriginCell->Row, MyCharacter->HighlightedOriginCell->Column) : TEXT("??");
@@ -394,10 +392,10 @@ void AMyAIController::OnCharacterMovementFinished()
     FString MoveLogEntry = FString::Printf(TEXT("%s: %s %s -> %s"), *Prefix, *UnitCode, *FromCoord, *ToCoord);
     GameMode->AddMoveToLog(MoveLogEntry);
 
-    // Pulisci HighlightedOriginCell
+    // clear HighlightedOriginCell
     MyCharacter->HighlightedOriginCell = nullptr;
 
-    // === Attacco dopo il movimento (sia Sniper che Brawler)
+    // attack after movement
     if (LastTarget && !MyCharacter->HasAttackedThisTurn)
     {
         int32 RowDiff = FMath::Abs(MyCharacter->CurrentRow - LastTarget->CurrentRow);
@@ -408,7 +406,7 @@ void AMyAIController::OnCharacterMovementFinished()
             MyCharacter->Attack(LastTarget);
             MyCharacter->HasAttackedThisTurn = true;
 
-            // 🔥 Log attacco dopo movimento
+            // attack log after movement
             FString Prefix = TEXT("AI");
             FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
             FString TargetCoord = LastTarget->CurrentCell ? ConvertToChessNotation(LastTarget->CurrentCell->Row, LastTarget->CurrentCell->Column) : TEXT("??");
@@ -424,7 +422,7 @@ void AMyAIController::OnCharacterMovementFinished()
 
 AGameCharacter* AMyAIController::FindClosestEnemy()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[IA] Sto cercando nemici..."));
+    UE_LOG(LogTemp, Warning, TEXT("[IA] finding enemy..."));
 
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGameCharacter::StaticClass(), FoundActors);
@@ -469,17 +467,15 @@ AGameCharacter* AMyAIController::FindClosestEnemy()
     bool bSniperInRange = (MinDistanceSniper <= MoveRange);
     bool bOtherInRange = (MinDistanceOther <= MoveRange);
 
-    // 🎯 Se entrambi in range, preferisci lo Sniper
+    // sniper preference
     if (bSniperInRange && bOtherInRange)
     {
         return ClosestSniper;
     }
 
-    // Se solo uno in range, ritorna quello
     if (bSniperInRange) return ClosestSniper;
     if (bOtherInRange) return ClosestOther;
 
-    // Nessuno in range: ritorna il più vicino in assoluto
     return (MinDistanceSniper < MinDistanceOther) ? ClosestSniper : ClosestOther;
 }
 
@@ -488,7 +484,7 @@ void AMyAIController::ClearCurrentPath()
 {
     CurrentPath.Empty();
     CurrentTarget = nullptr;
-    UE_LOG(LogTemp, Warning, TEXT("[IA] Path e target sono stati azzerati."));
+    UE_LOG(LogTemp, Warning, TEXT("[IA] Path and target cleared."));
 }
 
 AGameCharacter* AMyAIController::GetControlledCharacter() const
@@ -556,12 +552,10 @@ void AMyAIController::TryToEscapeAndAttack(AGameCharacter* Threat)
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[IA] Sniper non ha trovato cella di fuga, attacca."));
-
         MyCharacter->Attack(Threat);
         MyCharacter->HasAttackedThisTurn = true;
 
-        // 🔥 Log
+        // log
         FString Prefix = TEXT("AI");
         FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
         FString TargetCoord = Threat->CurrentCell ? ConvertToChessNotation(Threat->CurrentCell->Row, Threat->CurrentCell->Column) : TEXT("??");

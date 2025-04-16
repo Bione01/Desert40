@@ -3,5 +3,5 @@
 void UMyGameInstance::SetHardMode(bool bHard)
 {
     bIsHardMode = bHard;
-    UE_LOG(LogTemp, Warning, TEXT("Modalità cambiata: %s"), bHard ? TEXT("HARD") : TEXT("EASY"));
+    UE_LOG(LogTemp, Warning, TEXT("change difficulty: %s"), bHard ? TEXT("HARD") : TEXT("EASY"));
 }

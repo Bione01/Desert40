@@ -16,21 +16,19 @@ void UMoveLogWidget::AddMoveEntry(const FString& MoveText)
 
     NewText->SetText(FText::FromString(MoveText));
 
-    // === FONT ===
+    // font
     FSlateFontInfo FontInfo;
-    FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Script/Engine.Font'/Game/Text_Mat/UI_Turns/Cinzel-Bold_Font.Cinzel-Bold_Font'")); // grassetto se disponibile
-    FontInfo.Size = 16; // leggermente più grande
+    FontInfo.FontObject = LoadObject<UObject>(nullptr, TEXT("/Script/Engine.Font'/Game/Text_Mat/UI_Turns/Cinzel-Bold_Font.Cinzel-Bold_Font'")); 
+    FontInfo.Size = 16;
     NewText->SetFont(FontInfo);
 
-    // === COLORE ===
+    // color
     if (MoveText.StartsWith("HP:"))
     {
-        // verde scuro più intenso
         NewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.10f, 0.15f, 0.05f, 1.0f)));
     }
     else if (MoveText.StartsWith("AI:"))
     {
-        // grigio più scuro
         NewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.18f, 0.18f, 0.18f, 1.0f)));
     }
     else
@@ -38,7 +36,7 @@ void UMoveLogWidget::AddMoveEntry(const FString& MoveText)
         NewText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     }
 
-    // === Add e scrolla ===
+    // add and scroll
     MoveLogScrollBox->AddChild(NewText);
     MoveLogScrollBox->ScrollToEnd();
 }

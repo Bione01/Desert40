@@ -6,7 +6,7 @@
 UENUM(BlueprintType)
 enum class ETurnState : uint8
 {
-    TS_PlayerTurn UMETA(DisplayName = "Turno Giocatore"),
-    TS_EnemyTurn  UMETA(DisplayName = "Turno Nemico")
+    TS_PlayerTurn UMETA(DisplayName = "player turn"),
+    TS_EnemyTurn  UMETA(DisplayName = "enemy turn")
     
 };

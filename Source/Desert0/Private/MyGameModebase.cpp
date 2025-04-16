@@ -42,7 +42,7 @@ void AMyGameModebase::BeginPlay()
         {
             HealthBarPanelWidget->AddToViewport(10);
         }
-        UE_LOG(LogTemp, Warning, TEXT("📋 Widget della barra della salute: %s"), HealthBarPanelWidget ? TEXT("Creato") : TEXT("nullptr"));
+        UE_LOG(LogTemp, Warning, TEXT("healthbar widget: %s"), HealthBarPanelWidget ? TEXT("Created") : TEXT("nullptr"));
     }
 
     if (GridManagerClass)
@@ -52,11 +52,11 @@ void AMyGameModebase::BeginPlay()
         GridManager = GetWorld()->SpawnActor<AGrid_Manager>(GridManagerClass, SpawnLocation, SpawnRotation);
         if (GridManager)
         {
-            UE_LOG(LogTemp, Log, TEXT("Grid Manager spawnato con successo."));
+            UE_LOG(LogTemp, Log, TEXT("Grid Manager successfully spawned."));
         }
     }
 
-    // ➕ LANCIO DELLA MONETA CON ANIMAZIONE
+    // coin flip
     if (CoinFlipActorClass)
     {
         FVector CoinSpawnLocation = FVector(0.f, 0.f, 200.f);
@@ -81,22 +81,22 @@ void AMyGameModebase::BeginPlay()
     }
 
     bPlayerStartsPlacement = FMath::RandBool();
-    UE_LOG(LogTemp, Log, TEXT("Lancio della moneta: %s inizia il posizionamento."), bPlayerStartsPlacement ? TEXT("Giocatore") : TEXT("IA"));
+    UE_LOG(LogTemp, Log, TEXT("coin flip: %s start placement."), bPlayerStartsPlacement ? TEXT("player") : TEXT("IA"));
 
     if (bPlayerStartsPlacement)
     {
-        UE_LOG(LogTemp, Log, TEXT("Attesa input del giocatore per posizionare la prima unità."));
+        UE_LOG(LogTemp, Log, TEXT("waiting player input."));
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("L'IA sta posizionando la prima unità..."));
+        UE_LOG(LogTemp, Log, TEXT("IA placing first unit.."));
         PlaceAIUnit();
     }
 }
 
 void AMyGameModebase::AddMoveToLog(const FString& MoveText)
 {
-    UE_LOG(LogTemp, Warning, TEXT("[LOG] AddMoveToLog chiamato con: %s"), *MoveText);
+    UE_LOG(LogTemp, Warning, TEXT("[LOG] AddMoveToLog called for: %s"), *MoveText);
 
     if (MoveLogWidget)
     {
@@ -104,7 +104,7 @@ void AMyGameModebase::AddMoveToLog(const FString& MoveText)
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[LOG] MoveLogWidget è nullptr"));
+        UE_LOG(LogTemp, Error, TEXT("[LOG] MoveLogWidget is nullptr"));
     }
 }
 
@@ -118,12 +118,12 @@ void AMyGameModebase::StartPlacementPhase()
     if (bPlayerStartsPlacement)
     {
         EnablePlayerInput();
-        if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
+        if (PC) PC->SetCharacterSelectionVisibility(true);
     }
     else
     {
         DisablePlayerInput();
-        if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
+        if (PC) PC->HideCharacterSelectionWidget();
         PlaceAIUnit();
     }
 }
@@ -148,11 +148,11 @@ void AMyGameModebase::NotifyPlayerUnitPlaced()
 {
     PlayerUnitsPlaced++;
 
-    // 🔧 AGGIUNGI QUI LA BARRA DELLA SALUTE
+    // add healthbar
     if (HealthBarPanelWidget && PlayerUnits.Num() > 0)
     {
         AGameCharacter* LastPlayerUnit = PlayerUnits.Last();
-        UE_LOG(LogTemp, Warning, TEXT("📦 AddHealthBarForCharacter chiamata per: %s"), *LastPlayerUnit->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("AddHealthBarForCharacter called for: %s"), *LastPlayerUnit->GetName());
         HealthBarPanelWidget->AddHealthBarForCharacter(LastPlayerUnit);
     }
 
@@ -216,13 +216,13 @@ void AMyGameModebase::NotifyAIUnitPlaced()
     {
         if (TurnImageWidget) TurnImageWidget->SetTurnImage(true);
         EnablePlayerInput();
-        if (PC) PC->SetCharacterSelectionVisibility(true); // 🔄 MODIFICA
+        if (PC) PC->SetCharacterSelectionVisibility(true);
     }
     else
     {
         if (TurnImageWidget) TurnImageWidget->SetTurnImage(false);
         DisablePlayerInput();
-        if (PC) PC->HideCharacterSelectionWidget(); // 🔄 MODIFICA
+        if (PC) PC->HideCharacterSelectionWidget();
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::PlaceAIUnit);
     }
 }
@@ -306,18 +306,18 @@ void AMyGameModebase::PlaceAIUnit_Internal()
             HealthBarPanelWidget->AddHealthBarForCharacter(SpawnedAIUnit);
         }
 
-        UE_LOG(LogTemp, Log, TEXT("Unità IA spawnata: %s nella cella (%d, %d)"), *SpawnedAIUnit->GetName(), DestinationCell->Row, DestinationCell->Column);
+        UE_LOG(LogTemp, Log, TEXT("IA unit spawn: %s in cell (%d, %d)"), *SpawnedAIUnit->GetName(), DestinationCell->Row, DestinationCell->Column);
         NotifyAIUnitPlaced();
     }
 }
 
 void AMyGameModebase::PlacePlayerUnit()
 {
-    UE_LOG(LogTemp, Log, TEXT("Il giocatore posiziona una unità."));
+    UE_LOG(LogTemp, Log, TEXT("player place unit in."));
 
     if (AIUnitClasses.Num() == 0 || !GridManager)
     {
-        UE_LOG(LogTemp, Warning, TEXT("AIUnitClasses vuoto o GridManager non impostato!"));
+        UE_LOG(LogTemp, Warning, TEXT("AIUnitClasses empty or GridManager not set!"));
         return;
     }
 
@@ -336,7 +336,7 @@ void AMyGameModebase::PlacePlayerUnit()
 
     if (!DestinationCell)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Nessuna cella trovata in (%d, %d)"), Row, Column);
+        UE_LOG(LogTemp, Warning, TEXT("no cell found in (%d, %d)"), Row, Column);
         return;
     }
 
@@ -372,14 +372,14 @@ void AMyGameModebase::PlacePlayerUnit()
             HealthBarPanelWidget->AddHealthBarForCharacter(SpawnedPlayerUnit);
         }
 
-        // ✅ Aggiungi all'array delle unità del player
+        // add player units in array
         PlayerUnits.Add(SpawnedPlayerUnit);
 
-        UE_LOG(LogTemp, Log, TEXT("Unità del giocatore spawnata con successo: %s"), *SpawnedPlayerUnit->GetName());
+        UE_LOG(LogTemp, Log, TEXT("player unit successfully spawned: %s"), *SpawnedPlayerUnit->GetName());
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Errore nello spawn dell'unità del giocatore."));
+        UE_LOG(LogTemp, Warning, TEXT("error in player spawn unit."));
     }
 
     NotifyPlayerUnitPlaced();
@@ -391,7 +391,7 @@ void AMyGameModebase::StartBattlePhase()
     PlayerUnitsMoved = 0;
     AIUnitsMoved = 0;
 
-    // 🔥 Spegni tutti gli highlight
+    // switch off all highlight
     if (GridManager)
     {
         for (ACell_Actor* Cell : GridManager->GetAllCells())
@@ -408,7 +408,7 @@ void AMyGameModebase::StartBattlePhase()
     AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
     if (PC) PC->HideCharacterSelectionWidget();
 
-    // ✅ Mostra il MoveLogWidget SOLO ORA
+    // show MoveLogWidget
     if (MoveLogWidget && !MoveLogWidget->IsInViewport())
     {
         MoveLogWidget->AddToViewport();
@@ -445,7 +445,7 @@ void AMyGameModebase::StartPlayerTurn()
             if (Unit->CurrentCell)
             {
                 Unit->CurrentCell->SetOriginHighlight(true);
-                Unit->HighlightedOriginCell = Unit->CurrentCell; // 🔥 salva riferimento
+                Unit->HighlightedOriginCell = Unit->CurrentCell;
             }
         }
     }
@@ -485,9 +485,9 @@ void AMyGameModebase::StartEnemyTurn()
 void AMyGameModebase::NotifyPlayerUnitMoved()
 {
     PlayerUnitsMoved++;
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] PlayerUnitsMoved: %d / Unità rimaste: %d"), PlayerUnitsMoved, PlayerUnits.Num());
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] PlayerUnitsMoved: %d / units left: %d"), PlayerUnitsMoved, PlayerUnits.Num());
 
-    if (PlayerUnitsMoved >= PlayerUnits.Num()) // NON MaxUnitsPerSide!
+    if (PlayerUnitsMoved >= PlayerUnits.Num())
     {
         EndTurn();
     }
@@ -499,7 +499,7 @@ void AMyGameModebase::NotifyAIUnitMoved()
 
     if (CurrentAIUnitIndex >= AIUnits.Num())
     {
-        UE_LOG(LogTemp, Log, TEXT("Tutte le unità IA hanno agito. Passo il turno al Player."));
+        UE_LOG(LogTemp, Log, TEXT("all IA units moved. player turn."));
         
       
         
@@ -511,7 +511,7 @@ void AMyGameModebase::NotifyAIUnitMoved()
             EnemyTurnTimerHandle,
             this,
             &AMyGameModebase::MoveNextAIUnit,
-            0.3f, // Delay visivo
+            0.3f, // delay
             false
         );
     }
@@ -529,7 +529,7 @@ void AMyGameModebase::MoveNextAIUnit()
 {
     if (CurrentAIUnitIndex >= AIUnits.Num())
     {
-        UE_LOG(LogTemp, Log, TEXT("Tutte le unità AI hanno agito. Passo il turno al Player."));
+        UE_LOG(LogTemp, Log, TEXT("all IA units moved. player turn."));
         GetWorldTimerManager().SetTimerForNextTick(this, &AMyGameModebase::EndTurn);
         return;
     }
@@ -542,14 +542,14 @@ void AMyGameModebase::MoveNextAIUnit()
         {
             UE_LOG(LogTemp, Log, TEXT("L'IA controlla: %s"), *AIUnit->GetName());
 
-            // 🔁 Aggiungiamo un delay prima di chiamare RunTurn()
+            // delay
             GetWorldTimerManager().SetTimer(
                 EnemyTurnTimerHandle,
                 FTimerDelegate::CreateLambda([AIController]()
                 {
                     AIController->RunTurn();
                 }),
-                1.0f, // ⏱️ delay prima del movimento
+                1.0f, // delay
                 false
             );
         }
@@ -560,29 +560,29 @@ void AMyGameModebase::EndTurn()
 {
     if (CurrentPhase != EGamePhase::GP_Battle) return;
 
-    // ✅ Check se partita è finita prima di passare il turno
+    // check for pass
     if (PlayerUnits.Num() == 0)
     {
-        EndGame(false); // IA vince
+        EndGame(false);
         return;
     }
     if (AIUnits.Num() == 0)
     {
-        EndGame(true); // Player vince
+        EndGame(true);
         return;
     }
 
-    // Log di debug
-    UE_LOG(LogTemp, Error, TEXT("********** END TURN **********"));
+    // debug log
+    UE_LOG(LogTemp, Log, TEXT("end turn"));
 
     if (CurrentTurn == ETurnState::TS_PlayerTurn)
     {
-        UE_LOG(LogTemp, Log, TEXT("Turno del Player finito. Inizio turno IA."));
+        UE_LOG(LogTemp, Log, TEXT("player turn finished. IA start"));
         StartEnemyTurn();
     }
     else
     {
-        UE_LOG(LogTemp, Log, TEXT("Turno dell'IA finito. Inizio turno Player."));
+        UE_LOG(LogTemp, Log, TEXT("IA turn finished. player start"));
         StartPlayerTurn();
     }
 }
@@ -598,8 +598,8 @@ void AMyGameModebase::ExecuteNextAIUnit()
 {
     if (CurrentAIIndex >= AIUnits.Num())
     {
-        UE_LOG(LogTemp, Log, TEXT("Tutte le unità IA hanno finito di muoversi."));
-        EndTurn(); // Qui chiami il passaggio turno al Player
+        UE_LOG(LogTemp, Log, TEXT("all IA units finish movement"));
+        EndTurn(); // player
         return;
     }
 
@@ -608,22 +608,22 @@ void AMyGameModebase::ExecuteNextAIUnit()
 
     if (AIChar && AIController)
     {
-        UE_LOG(LogTemp, Log, TEXT("IA Unit %d: %s sta iniziando il turno"), CurrentAIIndex, *AIChar->GetName());
+        UE_LOG(LogTemp, Log, TEXT("IA Unit %d: %s start turn"), CurrentAIIndex, *AIChar->GetName());
 
-        // Scollega eventuali vecchi bind
+        // unplug old bind
         AIChar->OnMovementFinished.Clear();
 
-        // Collega l'evento
+        // plug event
         AIChar->OnMovementFinished.AddDynamic(this, &AMyGameModebase::OnAIMovementFinished);
 
-        // Avvia il turno
+        // start turn
         AIController->RunTurn();
     }
 }
 
 void AMyGameModebase::OnAIMovementFinished()
 {
-    UE_LOG(LogTemp, Log, TEXT("IA Unit %d ha finito di muoversi"), CurrentAIIndex);
+    UE_LOG(LogTemp, Log, TEXT("IA Unit %d finished movemnt"), CurrentAIIndex);
 
     CurrentAIIndex++;
     ExecuteNextAIUnit();
@@ -634,27 +634,26 @@ void AMyGameModebase::OnUnitKilled(AGameCharacter* DeadUnit)
     if (DeadUnit->bIsAIControlled)
     {
         AIUnits.Remove(DeadUnit);
-        UE_LOG(LogTemp, Warning, TEXT("[GameMode] Unità IA eliminata."));
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] IA unit dead"));
     }
     else
     {
         bool bHadAlreadyMoved = DeadUnit->HasMovedThisTurn;
         PlayerUnits.Remove(DeadUnit);
-        UE_LOG(LogTemp, Warning, TEXT("[GameMode] Unità del giocatore eliminata."));
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] player unit dead"));
 
         if (!bHadAlreadyMoved)
         {
             PlayerUnitsMoved++;
         }
 
-        // ✅ Se tutte le unità Player sono morte → fine partita
+        // all player units dead -> end game
         if (PlayerUnits.Num() == 0)
         {
             EndGame(false);
             return;
         }
 
-        // ✅ Se l'unica unità rimasta ha già mosso e attaccato → passo il turno
         bool bAllActed = true;
         for (AGameCharacter* Unit : PlayerUnits)
         {
@@ -667,12 +666,12 @@ void AMyGameModebase::OnUnitKilled(AGameCharacter* DeadUnit)
 
         if (bAllActed)
         {
-            UE_LOG(LogTemp, Log, TEXT("[GameMode] Dopo la morte, tutte le PlayerUnit hanno agito. Passo il turno."));
+            UE_LOG(LogTemp, Log, TEXT("[GameMode] after death, all player units moved. pass turn."));
             EndTurn();
         }
     }
 
-    // ✅ Controllo fine partita per IA
+    // IA endgame check
     if (AIUnits.Num() == 0)
     {
         EndGame(true);
@@ -682,25 +681,24 @@ void AMyGameModebase::OnUnitKilled(AGameCharacter* DeadUnit)
 void AMyGameModebase::EndGame(bool bPlayerWon)
 {
     CurrentPhase = EGamePhase::GP_End;
-    UE_LOG(LogTemp, Warning, TEXT("=== PARTITA TERMINATA ==="));
+    UE_LOG(LogTemp, Warning, TEXT("end game"));
     if (bPlayerWon)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Hai vinto!"));
+        UE_LOG(LogTemp, Warning, TEXT("you won!"));
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("Hai perso!"));
+        UE_LOG(LogTemp, Warning, TEXT("you lose!"));
     }
     
-    // Blocca input
+    // unable input
     AMyPlayerController* PC = Cast<AMyPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
     if (PC)
     {
         PC->SetInputMode(FInputModeUIOnly());
         PC->bShowMouseCursor = true;
     }
-    
-    // Blocca IA
+
     for (AGameCharacter* Unit : AIUnits)
     {
         if (Unit)
@@ -720,7 +718,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
         {
             EndGameWidget->AddToViewport(20);
 
-            // Mostra l'immagine corretta
+            // show endgame image
             UImage* Image_YouWon = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_YouWon")));
             UImage* Image_GameOver = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_GameOver")));
 
@@ -733,7 +731,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
                 Image_GameOver->SetVisibility(ESlateVisibility::Visible);
             }
 
-            // Mostra mouse e blocca input
+            // show mouse unable input
             APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
             if (PC)
             {
@@ -758,7 +756,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
         {
             EndGameWidget->AddToViewport();
 
-            // Mostra l'immagine giusta
+            // show correct image
             UImage* Image_YouWon = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_YouWon")));
             UImage* Image_GameOver = Cast<UImage>(EndGameWidget->GetWidgetFromName(TEXT("Image_GameOver")));
 
@@ -771,7 +769,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
                 Image_GameOver->SetVisibility(ESlateVisibility::Visible);
             }
 
-            // Blocca l’input e mostra il mouse
+            // unable inpunt, show mouse
             APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
             if (PC)
             {

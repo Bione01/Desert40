@@ -18,7 +18,7 @@ public:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
 
-    // === Widget ===
+    // widget
     
     UFUNCTION()
     void SetCharacterSelectionVisibility(bool bVisible);
@@ -32,14 +32,14 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "UI")
     UUserWidget* CharacterSelectionWidget;
 
-    // === Classi Personaggi ===
+    // character class
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Characters")
     TSubclassOf<AGameCharacter> SniperCharacterClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Characters")
     TSubclassOf<AGameCharacter> BrawlerCharacterClass;
 
-    // === Stato piazzamento ===
+    // placement
     UPROPERTY(BlueprintReadWrite, Category = "Placement")
     int32 PlacementCount = 0;
 
@@ -61,7 +61,6 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Characters")
     AGameCharacter* SpawnedBrawler;
 
-    // === Grid ===
     UPROPERTY(BlueprintReadWrite, Category = "Grid")
     AGrid_Manager* GridManager;
 
@@ -71,18 +70,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     float MovementRange = 2.f;
 
-    // === Input & Selezione ===
     UPROPERTY()
     bool bIsMoving = false;
 
     UPROPERTY()
     AGameCharacter* SelectedCharacter = nullptr;
-    
-    // Stato per sapere se dobbiamo attendere un attacco dopo il movimento
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn State")
     bool bIsWaitingForAttack = false;
 
-    // === Funzioni ===
+    // function
     UFUNCTION(BlueprintCallable, Category = "Character Selection")
     void OnCharacterSelected(FName CharacterType);
 

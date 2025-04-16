@@ -16,11 +16,11 @@ class DESERT0_API ACell_Actor : public AActor
     GENERATED_BODY()
     
 public:
-    // Costruttore: imposta i valori di default
+    // Costruct, set value
     ACell_Actor();
 
 protected:
-    // Chiamato quando il gioco inizia o l'attore viene spawnato
+    // called after sapwned actor
     virtual void BeginPlay() override;
 
 public:
@@ -29,22 +29,18 @@ public:
     virtual void NotifyActorBeginCursorOver() override;
     virtual void NotifyActorEndCursorOver() override;
 
-    // Coordinate della cella nella griglia
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     int32 Row;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     int32 Column;
 
-    // Tipo di cella (Normale o Ostacolo)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     ECellType CellType;
 
-    // Stato di occupazione della cella
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     bool bIsOccupied;
 
-    // Riferimento all'attore che occupa la cella, se presente
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid")
     AActor* OccupyingUnit;
     

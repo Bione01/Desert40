@@ -11,7 +11,7 @@ AGrid_Manager::AGrid_Manager()
     NumRows = 25;
     NumColumns = 25;
     CellSize = 100.f;
-    CellSpacing = 0.f; // Puoi modificarlo in Blueprint
+    CellSpacing = 0.f; // Blueprint editable
 }
 
 void AGrid_Manager::BeginPlay()
@@ -29,14 +29,14 @@ void AGrid_Manager::CreateGrid()
 {
     if (!CellActorClass || !ObstacleBlueprint)
     {
-        UE_LOG(LogTemp, Warning, TEXT("CellActorClass o ObstacleBlueprint non impostato!"));
+        UE_LOG(LogTemp, Warning, TEXT("CellActorClass or ObstacleBlueprint not set!"));
         return;
     }
 
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // Pulizia precedente
+    // clear
     for (ACell_Actor* Cell : GridCells)
     {
         if (Cell) Cell->Destroy();
@@ -49,7 +49,7 @@ void AGrid_Manager::CreateGrid()
     FVector StartLocation = Origin - FVector(GridWidth / 2, GridHeight / 2, 0.f);
     StartLocationSaved = StartLocation;
 
-    // === Loop finché trovi una configurazione senza isole ===
+    // loop for correct asset
     bool bGridIsValid = false;
     while (!bGridIsValid)
     {
@@ -65,7 +65,7 @@ void AGrid_Manager::CreateGrid()
             }
         }
 
-        // Verifica se la griglia è valida (nessuna cella isolata)
+        // verify is grid is valid
         bGridIsValid = !HasIsolatedCells(GridArray);
         if (bGridIsValid)
         {
@@ -93,13 +93,12 @@ void AGrid_Manager::CreateGrid()
                             NewCell->Row = Row;
                             NewCell->Column = Col;
 
-                            // 🔤 Dai un nome unico alla cella
                             FString CellName = FString::Printf(TEXT("Cell_%d_%d"), Row, Col);
                             NewCell->Rename(*CellName);
-#if WITH_EDITOR
+                            #if WITH_EDITOR
                             NewCell->SetActorLabel(CellName);
-#endif
-                            NewCell->CellName = CellName; // se hai aggiunto una variabile in Cell_Actor.h
+                            #endif
+                            NewCell->CellName = CellName;
 
                             GridCells.Add(NewCell);
                         }
@@ -109,7 +108,7 @@ void AGrid_Manager::CreateGrid()
         }
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("Griglia generata senza celle isolate."));
+    UE_LOG(LogTemp, Warning, TEXT("Grid correctly generated."));
 }
 
 ACell_Actor* AGrid_Manager::GetCellAt(int32 Row, int32 Column) const
@@ -169,7 +168,7 @@ TArray<ACell_Actor*> AGrid_Manager::FindPathAStarAvoidingUnits(ACell_Actor* Star
 
     while (OpenSet.Num() > 0)
     {
-        // Ordina per (Cost + Heuristic)
+        // Order
         OpenSet.Sort([](const FCellNode& A, const FCellNode& B)
         {
             return (A.Cost + A.Heuristic) < (B.Cost + B.Heuristic);
@@ -225,7 +224,7 @@ TArray<ACell_Actor*> AGrid_Manager::FindPathAStarAvoidingUnits(ACell_Actor* Star
         }
     }
 
-    // === Ricostruzione percorso ===
+    // path building
     TArray<ACell_Actor*> Path;
     FCellNode* Current = TargetNode;
     while (Current && Current->Previous)
@@ -266,7 +265,7 @@ bool AGrid_Manager::HasIsolatedCells(const TArray<TArray<int32>>& GridArray) con
                 }
                 if (!bHasFreeNeighbor)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("Cella isolata trovata: (%d, %d)"), Row, Col);
+                    UE_LOG(LogTemp, Warning, TEXT("wrong cell found: (%d, %d)"), Row, Col);
                     return true;
                 }
             }

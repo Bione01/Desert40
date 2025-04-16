@@ -29,7 +29,7 @@ void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRang
 
     if (DestinationCell->bIsOccupied)
     {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è occupata"), DestinationCell->Row, DestinationCell->Column);
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: cell (%d, %d) is occupata"), DestinationCell->Row, DestinationCell->Column);
         return;
     }
 
@@ -41,7 +41,7 @@ void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRang
 
         if (ManhattanDistance > MovementRange)
         {
-            UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è fuori dal range di movimento"), DestinationCell->Row, DestinationCell->Column);
+            UE_LOG(LogTemp, Warning, TEXT("MoveToCell: cell (%d, %d) out of movement range"), DestinationCell->Row, DestinationCell->Column);
             return;
         }
 
@@ -60,5 +60,5 @@ void ASniperCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRang
     DestinationCell->bIsOccupied = true;
     DestinationCell->OccupyingUnit = this;
 
-    UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
+    UE_LOG(LogTemp, Log, TEXT("%s move to cell (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
 }

@@ -11,7 +11,7 @@ class DESERT0_API UMyGameInstance : public UGameInstance
 
 public:
     UPROPERTY(BlueprintReadWrite, Category = "Difficulty")
-    bool bIsHardMode = true; // Default: hard mode attivo
+    bool bIsHardMode = true;
 
     UFUNCTION(BlueprintCallable, Category = "Difficulty")
     void SetHardMode(bool bHard);

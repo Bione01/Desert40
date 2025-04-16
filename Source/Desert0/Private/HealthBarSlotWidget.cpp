@@ -46,7 +46,7 @@ void UHealthBarSlotWidget::UpdateHealthBar()
     float Percent = FMath::Clamp((float)CharacterRef->Health / MaxHP, 0.f, 1.f);
     HealthBar->SetPercent(Percent);
 
-    // Aggiorna testo
+    // update Text
     if (HealthText)
     {
         int32 DisplayedHealth = FMath::Max(0, CharacterRef->Health);

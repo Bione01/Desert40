@@ -9,23 +9,23 @@ ACoinFlipActor::ACoinFlipActor()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Corpo della moneta
+    // Coin body
     CoinMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CoinMesh"));
     RootComponent = CoinMesh;
 
-    // Faccia "Testa"
+    // Face "Head"
     Face_Top = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Face_Top"));
     Face_Top->SetupAttachment(RootComponent);
     Face_Top->SetRelativeLocation(FVector(0.f, 0.f, 1.f));
 
-    // Faccia "Croce"
+    // Face "Cross"
     Face_Bottom = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Face_Bottom"));
     Face_Bottom->SetupAttachment(RootComponent);
     Face_Bottom->SetRelativeLocation(FVector(0.f, 0.f, -1.f));
-    Face_Bottom->SetRelativeRotation(FRotator(180.f, 0.f, 0.f)); // capovolta
+    Face_Bottom->SetRelativeRotation(FRotator(180.f, 0.f, 0.f)); // upside down
 
     bIsFlipping = false;
-    RotationSpeed = 720.f;   // gradi al secondo
+    RotationSpeed = 720.f;   // grade4second
     FlipDuration = 2.0f;
     ElapsedTime = 0.f;
 }
@@ -44,7 +44,7 @@ void ACoinFlipActor::Tick(float DeltaTime)
         ElapsedTime += DeltaTime;
         float RotationAmount = RotationSpeed * DeltaTime;
 
-        // Ruota la moneta (e le facce se le usi)
+        // spin the coin
         CoinMesh->AddLocalRotation(FRotator(RotationAmount, 0.f, 0.f));
         Face_Top->AddLocalRotation(FRotator(RotationAmount, 0.f, 0.f));
         Face_Bottom->AddLocalRotation(FRotator(RotationAmount, 0.f, 0.f));
@@ -53,20 +53,20 @@ void ACoinFlipActor::Tick(float DeltaTime)
         {
             bIsFlipping = false;
  
-            // Fissa la rotazione per mostrare la faccia vincente
+            // face the result
             FRotator FinalRotation = bPlayerStartsFlip ? FRotator(0.f, 0.f, 0.f) : FRotator(180.f, 0.f, 0.f);
             CoinMesh->SetRelativeRotation(FinalRotation);
             Face_Top->SetRelativeRotation(FinalRotation);
             Face_Bottom->SetRelativeRotation(FinalRotation);
 
-            // Aspetta 2 secondi fermi, poi avvia posizionamento
+            // wait 2 seconds before start placement
             GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
             {
                 GetWorld()->GetTimerManager().SetTimer(
                     TimerHandle_AfterPause,
                     this,
                     &ACoinFlipActor::OnFlipFinished,
-                    2.0f, // ← tempo visivo faccia
+                    2.0f, // timer set
                     false
                 );
             });
@@ -86,7 +86,6 @@ void ACoinFlipActor::OnFlipFinished()
     AMyGameModebase* GM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
     if (GM)
     {
-        // ✅ CREA IL WIDGET QUI DOPO IL LANCIO DELLA MONETA
         if (GM->TurnImageWidgetClass)
         {
             GM->TurnImageWidget = Cast<UTurnImageWidget>(CreateWidget(GetWorld(), GM->TurnImageWidgetClass));
@@ -100,5 +99,5 @@ void ACoinFlipActor::OnFlipFinished()
         GM->StartPlacementPhase();
     }
 
-    Destroy(); // distrugge la moneta
+    Destroy(); // destroy Coin
 }

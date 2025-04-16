@@ -11,7 +11,7 @@ AGameCharacter::AGameCharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
 
-    // Valori di default generici, che poi potrai modificare nelle classi derivate o via Blueprint
+    // Default value, blueprint editable
     MovementRange = 0;
     AttackRange = 0;
     MaxHealth = 100;
@@ -46,31 +46,31 @@ void AGameCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange)
 {
     if (!DestinationCell)
     {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: DestinationCell è null"));
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: DestinationCell is null"));
         return;
     }
 
     if (!bIgnoreRange && !CanReachCell(DestinationCell))
     {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è fuori dal range di movimento"), DestinationCell->Row, DestinationCell->Column);
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: Cell (%d, %d) out of movement range"), DestinationCell->Row, DestinationCell->Column);
         return;
     }
 
-    // Libera la cella precedente
+    // clear previous Cell
     if (CurrentCell)
     {
         CurrentCell->bIsOccupied = false;
         CurrentCell->OccupyingUnit = nullptr;
     }
 
-    // Aggiorna stato logico
+    // update logic state
     CurrentCell = DestinationCell;
     CurrentRow = DestinationCell->Row;
     CurrentColumn = DestinationCell->Column;
     DestinationCell->bIsOccupied = true;
     DestinationCell->OccupyingUnit = this;
 
-    UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), CurrentRow, CurrentColumn);
+    UE_LOG(LogTemp, Log, TEXT("%s move to Cell (%d, %d)"), *GetName(), CurrentRow, CurrentColumn);
 }
 
 
@@ -87,7 +87,7 @@ int32 AGameCharacter::GetMaxMovement() const
 void AGameCharacter::MoveToLocation(const FVector& NewLocation)
 {
     SetActorLocation(NewLocation);
-    UE_LOG(LogTemp, Log, TEXT("%s si è spostato a %s"), *GetName(), *NewLocation.ToString());
+    UE_LOG(LogTemp, Log, TEXT("%s moved to %s"), *GetName(), *NewLocation.ToString());
 }
 
 void AGameCharacter::ResetTurnState()
@@ -113,7 +113,7 @@ bool AGameCharacter::CanReachCell(const ACell_Actor* DestinationCell) const
     int32 RowDiff = FMath::Abs(CurrentRow - DestinationCell->Row);
     int32 ColDiff = FMath::Abs(CurrentColumn - DestinationCell->Column);
 
-    // Movimento ortogonale, tipo Fire Emblem
+    // Movement
     return (RowDiff + ColDiff) <= MovementRange;
 }
 void AGameCharacter::StartStepByStepMovement(const TArray<ACell_Actor*>& PathToFollow)
@@ -124,9 +124,9 @@ void AGameCharacter::StartStepByStepMovement(const TArray<ACell_Actor*>& PathToF
         return;
     }
 
-    // Salva il path (escludendo la cella attuale)
+    // Save path
     StepPath = PathToFollow;
-    StepPath.RemoveAt(0); // Prima è la cella attuale
+    StepPath.RemoveAt(0);
 
     MoveOneStep();
 }
@@ -143,7 +143,7 @@ void AGameCharacter::MoveOneStep()
     ACell_Actor* NextCell = StepPath[0];
     if (NextCell && NextCell->bIsOccupied)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Movimento bloccato: la prossima cella è occupata da %s."), *NextCell->OccupyingUnit->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[MOVEMENT] Movment block: next cell is occupy by %s."), *NextCell->OccupyingUnit->GetName());
         GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
         OnMovementFinished.Broadcast();
         return;
@@ -174,19 +174,19 @@ void AGameCharacter::UpdateSmoothMovement()
     {
         GetWorld()->GetTimerManager().ClearTimer(StepMovementTimer);
 
-        // Aggiorna logica del personaggio PRIMA di posizionarlo
+        // update before placement
         if (StepPath.Num() > 0)
         {
             ACell_Actor* NextCell = StepPath[0];
 
-            // Libera la cella precedente
+            // clear previous
             if (CurrentCell)
             {
                 CurrentCell->bIsOccupied = false;
                 CurrentCell->OccupyingUnit = nullptr;
             }
 
-            // Aggiorna la cella attuale
+            // update Current cell
             CurrentCell = NextCell;
             CurrentRow = NextCell->Row;
             CurrentColumn = NextCell->Column;
@@ -194,7 +194,7 @@ void AGameCharacter::UpdateSmoothMovement()
             NextCell->OccupyingUnit = this;
         }
 
-        // Ora che la logica è aggiornata, centra visivamente il personaggio
+        // center
         AMyGameModebase* GameMode = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
         if (GameMode && CurrentCell)
         {
@@ -204,12 +204,11 @@ void AGameCharacter::UpdateSmoothMovement()
 
         StepPath.RemoveAt(0);
 
-        // Passa alla prossima cella
+        // next cell
         MoveOneStep();
         return;
     }
 
-    // Interpolazione durante il movimento
     CurrentLerpTime += 0.01f;
     float Alpha = FMath::Clamp(CurrentLerpTime / MaxLerpTime, 0.f, 1.f);
     FVector NewLocation = FMath::Lerp(StartLocation, EndLocation, Alpha);
@@ -223,13 +222,13 @@ void AGameCharacter::ReceiveDamage(int32 DamageAmount)
     
     Health = FMath::Max(0, Health);
 
-    // Effetto visivo
+    // visual effect
     if (HitEffect)
     {
         UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), HitEffect, GetActorLocation());
     }
 
-    // Suono
+    // sound
     if (HitSound)
     {
         UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
@@ -243,7 +242,7 @@ void AGameCharacter::ReceiveDamage(int32 DamageAmount)
 
 void AGameCharacter::Die()
 {
-    UE_LOG(LogTemp, Warning, TEXT("%s è stato sconfitto!"), *GetName());
+    UE_LOG(LogTemp, Warning, TEXT("%s is dead!"), *GetName());
 
     //death sound effect
     if (DeathSound)
@@ -251,14 +250,14 @@ void AGameCharacter::Die()
           UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
       }
     
-    // Libera la cella
+    // clear cell
     if (CurrentCell)
     {
         CurrentCell->bIsOccupied = false;
         CurrentCell->OccupyingUnit = nullptr;
     }
 
-    // Notifica GameMode
+    // notify Gamemode
     AMyGameModebase* MyGameMode = Cast<AMyGameModebase>(GetWorld()->GetAuthGameMode());
     if (MyGameMode)
     {
@@ -275,11 +274,11 @@ void AGameCharacter::Attack(AGameCharacter* Target)
     int32 DamageDealt = FMath::RandRange(DamageMin, DamageMax);
     LastDamageDealt = DamageDealt;
 
-    UE_LOG(LogTemp, Log, TEXT("%s attacca %s infliggendo %d danni."), *GetName(), *Target->GetName(), DamageDealt);
+    UE_LOG(LogTemp, Log, TEXT("%s attack %s dealing %d dmg."), *GetName(), *Target->GetName(), DamageDealt);
 
     Target->ReceiveDamage(DamageDealt);
 
-    // 🔁 Contrattacco
+    // counterattack
     Target->HandleCounterAttack(this);
 }
 
@@ -297,12 +296,11 @@ void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
     if (IsSniper() || bIsAdjacent)
     {
         int32 CounterDamage = FMath::RandRange(1, 3);
-        UE_LOG(LogTemp, Log, TEXT("%s contrattacca %s infliggendo %d danni."),
+        UE_LOG(LogTemp, Log, TEXT("%s counterattack %s dealing %d dmg."),
             *GetName(), *Attacker->GetName(), CounterDamage);
 
         Attacker->ReceiveDamage(CounterDamage);
 
-        // 🔐 Sicurezza: ricontrolla se è ancora valido dopo il danno
         if (IsValid(Attacker))
         {
             Attacker->PlayCounterHitFlash();
@@ -313,7 +311,7 @@ void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
 
 void AGameCharacter::HandleDeath()
 {
-    UE_LOG(LogTemp, Warning, TEXT("%s è stato sconfitto!"), *GetName());
+    UE_LOG(LogTemp, Warning, TEXT("%s is dead!"), *GetName());
 
     if (CurrentCell)
     {

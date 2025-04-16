@@ -3,8 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
-
-#include "CoinFlipActor.generated.h" // <-- ULTIMA INCLUDE
+#include "CoinFlipActor.generated.h" 
 
 UCLASS()
 class DESERT0_API ACoinFlipActor : public AActor

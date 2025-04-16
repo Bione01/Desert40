@@ -21,7 +21,6 @@ void UTurnImageWidget::PlayTurnAnimation(bool bIsPlayerTurn)
     {
         if (!bIsPlayerCurrentlyVisible)
         {
-            // Nemico era visibile → chiudi nemico → mostra player
             if (Anim_SlideOutEnemy) PlayAnimation(Anim_SlideOutEnemy);
             if (Anim_SlideInPlayer) PlayAnimation(Anim_SlideInPlayer);
             bIsPlayerCurrentlyVisible = true;
@@ -31,7 +30,6 @@ void UTurnImageWidget::PlayTurnAnimation(bool bIsPlayerTurn)
     {
         if (bIsPlayerCurrentlyVisible)
         {
-            // Player era visibile → chiudi player → mostra nemico
             if (Anim_SlideOutPlayer) PlayAnimation(Anim_SlideOutPlayer);
             if (Anim_SlideInEnemy) PlayAnimation(Anim_SlideInEnemy);
             bIsPlayerCurrentlyVisible = false;

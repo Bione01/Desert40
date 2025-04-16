@@ -46,7 +46,7 @@ public:
 
     bool bIsPlayerInputEnabled = false;
 
-    // === FASI DI GIOCO ===
+    // game phases
     
     UPROPERTY(EditDefaultsOnly, Category = "Coin Flip")
     TSubclassOf<class ACoinFlipActor> CoinFlipActorClass;
@@ -60,22 +60,22 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Phase")
     EGamePhase CurrentPhase;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turni")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn")
     ETurnState CurrentTurn;
 
     UFUNCTION(BlueprintCallable, Category = "Game Mode")
     void StartBattlePhase();
 
-    UFUNCTION(BlueprintCallable, Category = "Turni")
+    UFUNCTION(BlueprintCallable, Category = "Turn")
     void StartPlayerTurn();
 
-    UFUNCTION(BlueprintCallable, Category = "Turni")
+    UFUNCTION(BlueprintCallable, Category = "Turn")
     void StartEnemyTurn();
 
-    UFUNCTION(BlueprintCallable, Category = "Turni")
+    UFUNCTION(BlueprintCallable, Category = "Turn")
     void EndTurn();
 
-    // === POSIZIONAMENTO ===
+    // placement
     UFUNCTION(BlueprintCallable)
     void StartPlacementPhase();
 
@@ -112,7 +112,7 @@ public:
     UPROPERTY(BlueprintReadWrite, EditAnywhere)
     bool bIsHardMode = true;
 
-    // === AI TURN ===
+    // AI turn
     void ExecuteEnemyTurn();
 
     UFUNCTION(BlueprintCallable)
@@ -121,11 +121,10 @@ public:
     UFUNCTION(BlueprintCallable)
     void NotifyAIUnitMoved();
 
-    // === ACCESSORS ===
     FORCEINLINE const TArray<AGameCharacter*>& GetPlayerUnits() const { return PlayerUnits; }
     FORCEINLINE const TArray<AGameCharacter*>& GetAIUnits() const { return AIUnits; }
 
-    // === VARIABILI ===
+    // variables
     UPROPERTY(EditDefaultsOnly, Category = "Placement")
     float UnitSpawnZOffset = 50.f;
 

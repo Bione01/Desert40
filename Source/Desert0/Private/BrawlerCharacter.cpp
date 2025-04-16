@@ -18,7 +18,7 @@ ABrawlerCharacter::ABrawlerCharacter()
     CurrentCell = nullptr;
 }
 
-void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange /* puoi anche ignorarlo se non ti serve */)
+void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRange)
 {
     if (!DestinationCell)
     {
@@ -28,11 +28,11 @@ void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRan
 
     if (DestinationCell->bIsOccupied)
     {
-        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è occupata"), DestinationCell->Row, DestinationCell->Column);
+        UE_LOG(LogTemp, Warning, TEXT("MoveToCell: cell (%d, %d) is occupy"), DestinationCell->Row, DestinationCell->Column);
         return;
     }
 
-    if (CurrentCell && !bIgnoreRange) // solo se bIgnoreRange == false controlli la distanza
+    if (CurrentCell && !bIgnoreRange)
     {
         int32 DeltaRow = FMath::Abs(DestinationCell->Row - CurrentCell->Row);
         int32 DeltaCol = FMath::Abs(DestinationCell->Column - CurrentCell->Column);
@@ -40,7 +40,7 @@ void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRan
 
         if (ManhattanDistance > MovementRange)
         {
-            UE_LOG(LogTemp, Warning, TEXT("MoveToCell: La cella (%d, %d) è fuori dal range di movimento"), DestinationCell->Row, DestinationCell->Column);
+            UE_LOG(LogTemp, Warning, TEXT("MoveToCell: Cell (%d, %d) is out of movment range"), DestinationCell->Row, DestinationCell->Column);
             return;
         }
 
@@ -62,5 +62,5 @@ void ABrawlerCharacter::MoveToCell(ACell_Actor* DestinationCell, bool bIgnoreRan
     DestinationCell->bIsOccupied = true;
     DestinationCell->OccupyingUnit = this;
     
-    UE_LOG(LogTemp, Log, TEXT("%s si è mosso alla cella (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
+    UE_LOG(LogTemp, Log, TEXT("%s moved to cell (%d, %d)"), *GetName(), DestinationCell->Row, DestinationCell->Column);
 }
