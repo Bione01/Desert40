@@ -285,13 +285,11 @@ void AGameCharacter::Attack(AGameCharacter* Target)
 
 void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
 {
-    if (!Attacker) return;
+    if (!Attacker || !IsValid(Attacker)) return;
 
-    // Solo se chi attacca è Sniper
     ASniperCharacter* AttackingSniper = Cast<ASniperCharacter>(Attacker);
     if (!AttackingSniper) return;
 
-    // Il contrattacco avviene solo se adiacenti o se anche il difensore è uno Sniper
     int32 RowDiff = FMath::Abs(CurrentRow - Attacker->CurrentRow);
     int32 ColDiff = FMath::Abs(CurrentColumn - Attacker->CurrentColumn);
     bool bIsAdjacent = (RowDiff + ColDiff == 1);
@@ -299,22 +297,19 @@ void AGameCharacter::HandleCounterAttack(AGameCharacter* Attacker)
     if (IsSniper() || bIsAdjacent)
     {
         int32 CounterDamage = FMath::RandRange(1, 3);
-        UE_LOG(LogTemp, Warning, TEXT("[COUNTERATTACK] %s contrattacca %s infliggendo %d danni."),
+        UE_LOG(LogTemp, Log, TEXT("%s contrattacca %s infliggendo %d danni."),
             *GetName(), *Attacker->GetName(), CounterDamage);
 
         Attacker->ReceiveDamage(CounterDamage);
-        FString Prefix = TEXT("CP");
-        FString UnitCode = IsSniper() ? TEXT("S") : TEXT("B");
-        FString FromCoord = CurrentCell ? CurrentCell->CellName : TEXT("??");
-        FString ToCoord = Attacker->CurrentCell ? Attacker->CurrentCell->CellName : TEXT("??");
 
-        FString LogEntry = FString::Printf(TEXT("%s: %s %s -> %s"), *Prefix, *UnitCode, *FromCoord, *ToCoord);
-
-        AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
-
-        Attacker->PlayCounterHitFlash(); // 🔥 Effetto visivo aggiunto
+        // 🔐 Sicurezza: ricontrolla se è ancora valido dopo il danno
+        if (IsValid(Attacker))
+        {
+            Attacker->PlayCounterHitFlash();
+        }
     }
 }
+
 
 void AGameCharacter::HandleDeath()
 {

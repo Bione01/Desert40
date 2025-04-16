@@ -165,6 +165,7 @@ void AMyPlayerController::HandleLeftMouseClick()
                 if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
                 {
                     SelectedCharacter->Attack(ClickedEnemy);
+                    if (!IsValid(SelectedCharacter)) return;
 
                     FString Prefix = TEXT("HP");
                     FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
@@ -203,6 +204,7 @@ void AMyPlayerController::HandleLeftMouseClick()
                 if (RowDiff + ColDiff <= SelectedCharacter->AttackRange)
                 {
                     SelectedCharacter->Attack(ClickedEnemy);
+                    if (!IsValid(SelectedCharacter)) return;
 
                     FString Prefix = TEXT("HP");
                     FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
