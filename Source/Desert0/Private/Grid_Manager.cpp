@@ -93,12 +93,12 @@ void AGrid_Manager::CreateGrid()
                             NewCell->Row = Row;
                             NewCell->Column = Col;
 
-                            FString CellName = FString::Printf(TEXT("Cell_%d_%d"), Row, Col);
-                            NewCell->Rename(*CellName);
+                            FString LocalCellName = FString::Printf(TEXT("Cell_%d_%d"), Row, Col);
+                            NewCell->Rename(*LocalCellName);
                             #if WITH_EDITOR
-                            NewCell->SetActorLabel(CellName);
+                            NewCell->SetActorLabel(LocalCellName);
                             #endif
-                            NewCell->CellName = CellName;
+                            NewCell->CellName = LocalCellName;
 
                             GridCells.Add(NewCell);
                         }

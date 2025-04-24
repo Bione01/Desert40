@@ -25,10 +25,10 @@ void AGameCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
-    UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
-    if (Mesh)
+    UStaticMeshComponent* FoundMesh = FindComponentByClass<UStaticMeshComponent>();
+    if (FoundMesh)
     {
-        OriginalMaterial = Mesh->GetMaterial(0);
+        OriginalMaterial = FoundMesh->GetMaterial(0);
     }
     
     if (!bIsAIControlled && SpawnSound)
@@ -329,10 +329,10 @@ void AGameCharacter::HandleDeath()
 }
 void AGameCharacter::PlayCounterHitFlash()
 {
-    UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
-    if (Mesh && CounterHitMaterial)
+    UStaticMeshComponent* MyMesh = FindComponentByClass<UStaticMeshComponent>();
+    if (MyMesh && CounterHitMaterial)
     {
-        Mesh->SetMaterial(0, CounterHitMaterial);
+        MyMesh->SetMaterial(0, CounterHitMaterial);
 
         GetWorld()->GetTimerManager().SetTimer(
             CounterFlashTimer,
@@ -346,9 +346,9 @@ void AGameCharacter::PlayCounterHitFlash()
 
 void AGameCharacter::EndCounterHitFlash()
 {
-    UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
-    if (Mesh && OriginalMaterial)
+    UStaticMeshComponent* FoundMesh = FindComponentByClass<UStaticMeshComponent>();
+    if (FoundMesh && OriginalMaterial)
     {
-        Mesh->SetMaterial(0, OriginalMaterial);
+        FoundMesh->SetMaterial(0, OriginalMaterial);
     }
 }

@@ -16,11 +16,11 @@ void UHealthBarPanelWidget::AddHealthBarForCharacter(AGameCharacter* Character)
     UVerticalBox* TargetContainer = Character->bIsAIControlled ? TopContainer : BottomContainer;
     if (!TargetContainer) return;
 
-    UVerticalBoxSlot* Slot = TargetContainer->AddChildToVerticalBox(NewSlot);
-    if (Slot)
+    UVerticalBoxSlot* NewBoxSlot = TargetContainer->AddChildToVerticalBox(NewSlot);
+    if (NewBoxSlot)
     {
-        Slot->SetPadding(FMargin(0.f, 10.f));
-        Slot->SetSize(ESlateSizeRule::Automatic);
+        NewBoxSlot->SetPadding(FMargin(0.f, 10.f));
+        NewBoxSlot->SetSize(ESlateSizeRule::Automatic);
     }
 }
 

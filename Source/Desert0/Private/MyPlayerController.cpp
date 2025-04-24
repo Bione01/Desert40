@@ -165,17 +165,17 @@ void AMyPlayerController::HandleLeftMouseClick()
                     SelectedCharacter->Attack(ClickedEnemy);
                     if (!IsValid(SelectedCharacter)) return;
 
-                    FString Prefix = TEXT("HP");
-                    FString UnitCode = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
-                    FString FromCoord = SelectedCharacter->CurrentCell ? ConvertToChessNotation(SelectedCharacter->CurrentCell->Row, SelectedCharacter->CurrentCell->Column) : TEXT("??");
+                    FString Prefix2 = TEXT("HP");
+                    FString UnitCode2 = SelectedCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+                    FString FromCoord2 = SelectedCharacter->CurrentCell ? ConvertToChessNotation(SelectedCharacter->CurrentCell->Row, SelectedCharacter->CurrentCell->Column) : TEXT("??");
                     int32 DamageDealt = SelectedCharacter->GetLastDamageDealt();
 
-                    FString LogEntry = FString::Printf(TEXT("%s: %s %s %d"), *Prefix, *UnitCode, *FromCoord, DamageDealt);
+                    FString LogEntry2 = FString::Printf(TEXT("%s: %s %s %d"), *Prefix2, *UnitCode2, *FromCoord2, DamageDealt);
 
                     AMyGameModebase* MyGM = Cast<AMyGameModebase>(UGameplayStatics::GetGameMode(this));
                     if (MyGM)
                     {
-                        MyGM->AddMoveToLog(LogEntry);
+                        MyGM->AddMoveToLog(LogEntry2);
                     }
 
                     SelectedCharacter->HasAttackedThisTurn = true;
