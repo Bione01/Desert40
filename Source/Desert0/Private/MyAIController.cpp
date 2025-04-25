@@ -383,7 +383,7 @@ void AMyAIController::OnCharacterMovementFinished()
     FVector FixedLocation = GameMode->GetCellLocationWithOffset(MyCharacter->CurrentCell);
     MyCharacter->SetActorLocation(FixedLocation);
 
-    // ia movement log
+    // IA movement log
     FString Prefix = TEXT("AI");
     FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
     FString FromCoord = MyCharacter->HighlightedOriginCell ? ConvertToChessNotation(MyCharacter->HighlightedOriginCell->Row, MyCharacter->HighlightedOriginCell->Column) : TEXT("??");
@@ -407,8 +407,8 @@ void AMyAIController::OnCharacterMovementFinished()
             MyCharacter->HasAttackedThisTurn = true;
 
             // attack log after movement
-            FString Prefix = TEXT("AI");
-            FString UnitCode = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
+            FString Prefix2 = TEXT("AI");
+            FString UnitCode2 = MyCharacter->IsSniper() ? TEXT("S") : TEXT("B");
             FString TargetCoord = LastTarget->CurrentCell ? ConvertToChessNotation(LastTarget->CurrentCell->Row, LastTarget->CurrentCell->Column) : TEXT("??");
             int32 Damage = MyCharacter->GetLastDamageDealt();
 

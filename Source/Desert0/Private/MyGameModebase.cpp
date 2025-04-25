@@ -732,7 +732,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
             }
 
             // show mouse unable input
-            APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+            APlayerController* PC1 = UGameplayStatics::GetPlayerController(this, 0);
             if (PC)
             {
                 PC->SetInputMode(FInputModeUIOnly());
@@ -770,7 +770,7 @@ void AMyGameModebase::EndGame(bool bPlayerWon)
             }
 
             // unable inpunt, show mouse
-            APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+            APlayerController* PC2 = UGameplayStatics::GetPlayerController(this, 0);
             if (PC)
             {
                 PC->SetInputMode(FInputModeUIOnly());
